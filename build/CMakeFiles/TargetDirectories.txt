@@ -1,3 +1,0 @@
-C:/Users/rudme/cpp4bio/projects/Msc_project_cooperation/build/CMakeFiles/Msc_project_cooperation.dir
-C:/Users/rudme/cpp4bio/projects/Msc_project_cooperation/build/CMakeFiles/edit_cache.dir
-C:/Users/rudme/cpp4bio/projects/Msc_project_cooperation/build/CMakeFiles/rebuild_cache.dir

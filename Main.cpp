@@ -242,6 +242,8 @@ public:
     
     StrategyPayOff DetermineStrategyPayOff();
 
+    void ResetPayOffs();
+
 private:
     array <Individual, nrIndividuals> population;
 };
@@ -486,6 +488,14 @@ StrategyPayOff classPopulation::DetermineStrategyPayOff()
 }
 
 
+
+void classPopulation::ResetPayOffs()
+{
+    for (auto& individual : population) {
+        individual.PayOff = 0.0;
+    }
+}
+
 /*==========================================================================================
 ============================================================================================
 =====================        Average Pay Off between Replicas        =======================
@@ -533,6 +543,7 @@ int main()
         exit(EXIT_FAILURE);
     }
 
+    system("mkdir results");         // create subfolder for results
     //ofstream outputFile("OutputFile.csv");
     //if(!outputFile.is_open()){
     //    cerr<<"error:unavle to open output file\n";
@@ -563,21 +574,21 @@ int main()
                                      startingPayOff);
         
         //myPopulation.printtest();
-        ofstream outputFile("Output_" + to_string(simulation) + ".csv");
+        ofstream outputFile("results/Output_" + to_string(simulation) + ".csv");
                 if(!outputFile.is_open()){
                 cerr<<"error:unavle to open output file\n";
                 exit(EXIT_FAILURE);
         }
 
         for (int replica = 0; replica < replicasPerPop; ++ replica){
+            myPopulation.ResetPayOffs();
+            cout << replica << " ";
             for (int round = 0; round < totalRounds; ++round) {
                 //cout << "\n\n Start round " << round + 1 << " !!!\n\n";
                 myPopulation.PlayInteractionRound(rng, error1, error2, cost, benefit);
                 //myPopulation.printtest();
             }
             
-            Results.avgResidentPayOff = 0.0;
-            Results.mutantPayOff = 0.0;
             Results = myPopulation.DetermineStrategyPayOff();
             //cout << "The average resident payoff = " << Results.avgResidentPayOff <<
             //        " and the mutant payoff = " << Results.mutantPayOff << endl;
@@ -585,6 +596,7 @@ int main()
 
         }
         outputFile.close();
+        cout << endl;
     }
     return 0;
 }
