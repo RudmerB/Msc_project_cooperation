@@ -8,6 +8,7 @@
 #include <string>
 #include <numeric>
 #include <algorithm> // find largest element
+#include <thread>
 using namespace std;
 //hello
 
@@ -18,8 +19,9 @@ using namespace std;
 ==========================================================================================*/
 constexpr int nrIndividuals = 100;              // constexpr initiates int during compling rather than run time (usefull for making arrays)
 constexpr int nrStrategies = 12;
+constexpr int nrSimulations = 132;
 
-int countNrSimulations()
+void countNrSimulations()
 {
     ifstream csvFile("InputFile.csv");
     if(!csvFile.is_open()){
@@ -57,12 +59,19 @@ int countNrSimulations()
     string s;
     int rowCount = 0;
     
-    while(!csvFile.eof()) {                                 // As long as there are lines in the file
-        getline(csvFile, s);                                // Temporarily store the line (so we move over the lines)
-        rowCount ++;                                        // Add 1 to rowcount
+    while (getline(csvFile, s)) {                           // only increments when a line was actually read
+    rowCount++;
     }
     csvFile.close();                                        // Close file
-    return rowCount;                                        // Give back the number of rows (simulations)
+    
+    if (rowCount != nrSimulations) {                             // If sum is not equal to global paramters shoot error message
+    cerr << "\nError: the file length " << rowCount << " doesn't match global parameter " 
+         << nrSimulations << "\nSubstitute global parameter at the top of"
+         << " the program with the file population " << rowCount << "\n\n";
+    exit(EXIT_FAILURE);
+    }
+
+    //return rowCount;                                        // Give back the number of rows (simulations) wont be necessary anymore i think since we made it constepxr
 }
 
 
@@ -529,7 +538,8 @@ int main()
 
 
     //******   initialize structure   *****
-    int nrSimulations = countNrSimulations();
+    //int nrSimulations = countNrSimulations();
+    countNrSimulations();
     strategiesSocialNorms socialNorms;
     strategiesActionRules strategies;
     StrategyPayOff Results;
@@ -542,6 +552,13 @@ int main()
         cerr<<"error:unable to open input file\n";
         exit(EXIT_FAILURE);
     }
+
+    array<array<int, nrStrategies>, nrSimulations> allPopulations;
+    for (int i = 0; i < nrSimulations; ++i){
+        allPopulations[i] = ReadStrategyFrequencies(inputFile);
+    }
+    inputFile.close();
+
 
     system("mkdir results");         // create subfolder for results
     //ofstream outputFile("OutputFile.csv");
@@ -556,7 +573,7 @@ int main()
 
 
     for(int simulation = 0; simulation < 1; ++simulation){
-        array<int, nrStrategies> nrIndividualsPerStrategy = ReadStrategyFrequencies(inputFile);
+        array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[simulation];
 
         // Used to check the outcome of one poulation! can be removed later
         //if (i != 126) { 
@@ -576,7 +593,6 @@ int main()
                                      startingReputation,
                                      startingPayOff);
         
-        //myPopulation.printtest();
         ofstream outputFile("results/Output_" + to_string(simulation) + ".csv");
                 if(!outputFile.is_open()){
                 cerr<<"error:unavle to open output file\n";
@@ -589,14 +605,10 @@ int main()
                 cout << "Simulation " << simulation << " replica " << replica << "/" << replicasPerPop << "\n";
             }   
             for (int round = 0; round < totalRounds; ++round) {
-                //cout << "\n\n Start round " << round + 1 << " !!!\n\n";
                 myPopulation.PlayInteractionRound(rng, error1, error2, cost, benefit);
-                //myPopulation.printtest();
             }
             
             Results = myPopulation.DetermineStrategyPayOff();
-            //cout << "The average resident payoff = " << Results.avgResidentPayOff <<
-            //        " and the mutant payoff = " << Results.mutantPayOff << endl;
             outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";
 
         }
