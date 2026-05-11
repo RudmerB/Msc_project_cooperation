@@ -7,72 +7,74 @@
 #include <sstream>
 #include <string>
 #include <numeric>
-#include <algorithm> // find largest element
+#include <algorithm>
 #include <thread>
 using namespace std;
-//hello
-
 /*==========================================================================================
 ============================================================================================
 ==========================          Global parameters           ============================
 ============================================================================================
 ==========================================================================================*/
-constexpr int nrIndividuals = 100;              // constexpr initiates int during compling rather than run time (usefull for making arrays)
-constexpr int nrStrategies = 12;
-constexpr int nrSimulations = 132;
+constexpr int nrIndividuals     = 100;              // Nr of individuals in one population
+constexpr int nrStrategies      = 12;               // Total number of social strategies (Leading eight, image-scoring etc.)
+constexpr int nrPermutations    = 132;              // Number of population permutations (number of unique strategy combinations)
 
-void countNrSimulations()
+
+/*==========================================================================================
+============================================================================================
+=================       Check global paramaters with input file         ====================
+============================================================================================
+==========================================================================================*/
+void checkGlobalParameters()
 {
     ifstream csvFile("InputFile.csv");
     if(!csvFile.is_open()){
-    cerr<<"error:unable to open data file\n";
-    exit(EXIT_FAILURE);
+        cerr<<"error:unable to open data file\n";
+        exit(EXIT_FAILURE);
     }
     
-    // ----------Suggestion by AI----------
-    string line;                                            // Create empty string
-    getline(csvFile, line);                                 // Fill string with contents of first line
-    
-    istringstream ss(line);                                 // Make the string a sort of file (so that functions for files can be used)
-    string val;                                             // Create another empty string
-    vector<int> firstRow;                                   // And create a vector(!) of the first row 
-    while(getline(ss, val, ',')) {                          // For each value in the line (seperated by commas) 
-        firstRow.push_back(stoi(val));                      // transform value to integer and add to back of the vector
-    }
-    
-    int sum = 0;                                            // create sum
-    for (int i = 0; i < firstRow.size(); ++i) {             // Run over the vector
-        sum += firstRow[i];                                 // Add each value to the sum
-    }
-    if (sum != nrIndividuals) {                             // If sum is not equal to global paramters shoot error message
-    cerr << "\nError: the file population " << sum << " doesn't match global parameter " 
-         << nrIndividuals << "\nSubstitute global parameter at the top of"
-         << " the program with the file population " << sum << "\n\n";
-    exit(EXIT_FAILURE);
-    }
-    //----------------------------------------
+    int rowCount = 0;                                           // Create row counter
+    string line;                                                // Create empty string for lines in input file
+    while (getline(csvFile, line)) {                            // For each line in the input file...
+        
+        ++rowCount;                                             // Increase row counter
+        vector<int> row;                                        // Initialize a vector
+        istringstream lineStream(line);                         // Transform current line to stream object
+        string val;                                             // Create empty string for values in line
+        
+        while(getline(lineStream, val, ',')){                   // For each value in the current line (comma-separated)...
+            row.push_back(stoi(val));                           // Add the value (string-to-integer) to the row vector
+        }
 
-    csvFile.clear();                                        // clear file (so getline can find the first line again)
-    csvFile.seekg(0);                                       // start at top of the file
+        if (static_cast<int>(row.size()) != nrStrategies) {     // If the row length does not equal global paramater...
+            cerr << "\nError: row " << rowCount << " has "      // ...throw error message
+                 << row.size() << " columns, expected "
+                 << nrStrategies << "\n\n";
+            exit(EXIT_FAILURE);                                 // Exit program
+        }
 
-    //https://stackoverflow.com/questions/50085440/what-is-the-fastest-way-to-get-the-number-of-rows-in-a-csv-file
-    string s;
-    int rowCount = 0;
-    
-    while (getline(csvFile, s)) {                           // only increments when a line was actually read
-    rowCount++;
-    }
-    csvFile.close();                                        // Close file
-    
-    if (rowCount != nrSimulations) {                             // If sum is not equal to global paramters shoot error message
-    cerr << "\nError: the file length " << rowCount << " doesn't match global parameter " 
-         << nrSimulations << "\nSubstitute global parameter at the top of"
-         << " the program with the file population " << rowCount << "\n\n";
-    exit(EXIT_FAILURE);
-    }
+        int sum = 0;                                            // Initialize individual counter
+        for (int v : row) {                                     // Run over the current line 
+            sum += v;                                           // Add the current value to the sum
+        }
 
-    //return rowCount;                                        // Give back the number of rows (simulations) wont be necessary anymore i think since we made it constepxr
+        if (sum != nrIndividuals) {                             // If the sum does not equal global parameter...
+            cerr << "\nError: row " << rowCount                 // ...throw error message
+                 << " sums to " << sum << ", expected " 
+                 << nrIndividuals << "\n\n";
+            exit(EXIT_FAILURE);                                 // Exit program
+        }
+    }
+    csvFile.close();                                            // Close File
+
+    if (rowCount != nrPermutations) {                           // If the number of rows does not equal global parameter...
+        cerr << "\nError: file has " << rowCount                // ...throw error message
+             << " rows, expected " << nrPermutations 
+             << "\n\n";
+        exit(EXIT_FAILURE);                                     // Exit program
+    }
 }
+//https://stackoverflow.com/questions/50085440/what-is-the-fastest-way-to-get-the-number-of-rows-in-a-csv-file
 
 
 /*==========================================================================================
@@ -87,7 +89,6 @@ struct strategiesSocialNorms{
     // * = same between strategies
 
     array<array<char, 8>, nrStrategies> socialNorm = {{
-    //    *     *           *     *     * 
     //   GGC - GGD - GBC - GBD - BGC - BGD - BBC - BBD
         {'G' , 'B' , 'G' , 'G' , 'G' , 'B' , 'G' , 'B'}, // L1
         {'G' , 'B' , 'B' , 'G' , 'G' , 'B' , 'G' , 'B'}, // L2 = consistent standing
@@ -117,7 +118,6 @@ struct strategiesActionRules{
     // 1st = donor, 2nd = recipient
 
     array<array<char, 4>, nrStrategies> actionRule = {{
-    //    *     *     *
     //    GG  - GB  - BG  - BB
         {'C' , 'D' , 'C' , 'C'}, // L1 (OR) help if recipient is good or you are bad
         {'C' , 'D' , 'C' , 'C'}, // L2 (OR)
@@ -179,7 +179,7 @@ struct Individual{
     double PayOff;                                                  // Each individual has a pay-off
     bool isResident = false;
 
-    Individual() = default;                                         // Basic constructor (used to initialize population, I think)
+    Individual() = default;                                         // Basic constructor 
     Individual(const char& startingReputation,                      // Constructor
                const double& startingPayOff);                                                 
 };
@@ -187,7 +187,7 @@ struct Individual{
 
 /*==========================================================================================
 ============================================================================================
-==========================          Struct constructor          ============================
+========================          Individual constructor          ==========================
 ============================================================================================
 ==========================================================================================*/
 Individual::Individual(const char& startingReputation,
@@ -244,10 +244,10 @@ public:
                                   const double& error2);
 
     void PlayInteractionRound(mt19937_64 &rng,
-                              double &error1,
-                              double &error2,
-                              double &cost,
-                              double &benefit);
+                              const double &error1,
+                              const double &error2,
+                              const double &cost,
+                              const double &benefit);
     
     StrategyPayOff DetermineStrategyPayOff();
 
@@ -275,7 +275,7 @@ classPopulation::classPopulation(const strategiesSocialNorms& socialNorms,
 
     for(int i = 0; i < nrIndividualsPerStrategy.size(); ++i) {                      // Loop over the different strategies
         for(int count = 0; count < nrIndividualsPerStrategy[i]; ++count) {          // Loop over the number of individuals per strategy 
-            if (populationIndex >= population.size()) {                             // Safety check: 'Are we counting more individuals than possible?'
+            if (populationIndex >= nrIndividuals) {                                 // Safety check: 'Are we counting more individuals than possible?'
                 throw logic_error("The index counts a larger population than the real population size.\n");
             }
             population[populationIndex] = Individual(startingReputation, startingPayOff);
@@ -290,7 +290,7 @@ classPopulation::classPopulation(const strategiesSocialNorms& socialNorms,
         }
     }
 
-    if (populationIndex != population.size()) {                                     // Safety check: 'Did we assign all individuals?'
+    if (populationIndex != nrIndividuals) {                                     // Safety check: 'Did we assign all individuals?'
         throw logic_error("The number of assigned individuals does not equal the population size.\n");
     }
 }
@@ -303,7 +303,7 @@ classPopulation::classPopulation(const strategiesSocialNorms& socialNorms,
 ==========================================================================================*/
 void classPopulation::printtest()
 {
-    for(int i = 0; i < population.size(); ++i){
+    for(int i = 0; i < nrIndividuals; ++i){
         cout << "\nThe social norms of individual " << i << " is :\n";
         for (int j = 0; j < 8; ++j){
             cout << population[i].socialNorm[j] << " ";
@@ -314,7 +314,7 @@ void classPopulation::printtest()
         }
         cout << endl;
         cout << "Their reputations of everyone is as follows: \n";
-        for (int k =0; k < population.size();++k) {
+        for (int k =0; k < nrIndividuals; ++k) {
             cout << population[i].privateReputations[k] << " ";
         }
         cout << endl;
@@ -344,7 +344,6 @@ bool classPopulation::DetermineAction(const int& donor,
   
     if (uniform(rng) <= error1) {                                                                       // Take a random number from the distribution and compare to error rate
         bAction = !bAction;                                                                             // Convert the choosen action to opposite action
-        //cout << "A type 1 error has been made" << endl;
         }
 
     return bAction;
@@ -396,20 +395,9 @@ void classPopulation::UpdatePrivateReputations(const bool& action,
                                                                 action] == 'G') ? 0 : 1;
         if (uniform(rng) <= error2) {                                                                   // Take a random number from the distribution and compare to error rate
             bNewReputation = !bNewReputation;                                                           // Convert the assigned reputation to opposite reputation
-            //cout << "A type 2 error has been made" << endl;
         }
-        //cout << "The observer " << observer << " saw the donor " << 
-        //        donor << " do (0=c, 1=d)" << action << " with recipient " << recipient << endl;
-        //cout << "The observer saw the donor as " << 
-        //        population[observer].privateReputations[donor] << endl;
 
         population[observer].privateReputations[donor] = (bNewReputation == 0) ? 'G' : 'B';             // Save the new reputation in the memory of the observer
-        
-        //cout << "The reputation that " << observer << " has given " << donor << 
-        //        " is " << population[observer].privateReputations[donor] << endl;
-        //cout << "\n\n";
-
-        // !!!!!!!!!!!!!!!!!!!!!!ALL cout statements can be removed but is handy for testing!!!!!!!!!!!!!!!!!!!!!!!!
     }
 }
 
@@ -420,10 +408,10 @@ void classPopulation::UpdatePrivateReputations(const bool& action,
 ============================================================================================
 ==========================================================================================*/
 void classPopulation::PlayInteractionRound(mt19937_64 &rng,
-                                           double &error1,
-                                           double &error2,
-                                           double &cost,
-                                           double &benefit)
+                                           const double &error1,
+                                           const double &error2,
+                                           const double &cost,
+                                           const double &benefit)
 {
     array <int, nrIndividuals> Indexes;                             // Create an array of indexes
     iota(begin(Indexes), end(Indexes), 0);                          // Fill the array with 0, 1, 2, etc
@@ -505,12 +493,6 @@ void classPopulation::ResetPayOffs()
     }
 }
 
-/*==========================================================================================
-============================================================================================
-=====================        Average Pay Off between Replicas        =======================
-============================================================================================
-==========================================================================================*/
-//StrategyPayOff classPopulation::
 
 /*==========================================================================================
 ============================================================================================
@@ -519,7 +501,7 @@ void classPopulation::ResetPayOffs()
 ==========================================================================================*/
 int main()
 {
-    //**********   parameters   **********
+    //--- parameters ---
     double  error1              = 0.01;
     double  error2              = 0.05;
     double  cost                = 1;
@@ -528,95 +510,96 @@ int main()
     double  startingPayOff      = 0.0;
     int     totalRounds         = 1000;
     int     replicasPerPop      = 1000;
-    //************************************
 
 
-    //******   random nr generator   *****
-    mt19937_64 rng;
-    GetSeedRNG(rng);
-    //************************************
+    //--- random nr generator ---
+    mt19937_64 rng;                         // Initialize rng
+    GetSeedRNG(rng);                        // Seed the rng with current time
+    unsigned int baseSeed = rng();          // Extract base seed
 
 
-    //******   initialize structure   *****
-    //int nrSimulations = countNrSimulations();
-    countNrSimulations();
-    strategiesSocialNorms socialNorms;
-    strategiesActionRules strategies;
-    StrategyPayOff Results;
-    //************************************
+    //--- initialize structures ---
+    strategiesSocialNorms socialNorms;      // Create socialnorm struct
+    strategiesActionRules actionRules;      // Create actionrule struct
     
 
-    //***********  open files   **********
+    //--- open input file ---
     ifstream inputFile("InputFile.csv");
     if(!inputFile.is_open()){
         cerr<<"error:unable to open input file\n";
         exit(EXIT_FAILURE);
     }
 
-    array<array<int, nrStrategies>, nrSimulations> allPopulations;
-    for (int i = 0; i < nrSimulations; ++i){
-        allPopulations[i] = ReadStrategyFrequencies(inputFile);
+    checkGlobalParameters();                   // Function that checks whether constexpr at top = file input
+
+    //--- read strategy permutation ---
+    array<array<int, nrStrategies>, nrPermutations> allPopulations;     // Create an array of arrays
+    for (int i = 0; i < nrPermutations; ++i){                           // Loop over the strategy permutations
+        allPopulations[i] = ReadStrategyFrequencies(inputFile);         // Store the permutations in the array
     }
-    inputFile.close();
+    inputFile.close();                                                  // Close the input file
 
 
-    system("mkdir results");         // create subfolder for results
-    //ofstream outputFile("OutputFile.csv");
-    //if(!outputFile.is_open()){
-    //    cerr<<"error:unavle to open output file\n";
-    //    exit(EXIT_FAILURE);
-    //}
-    //************************************
+    //--- setup ---
+    string resultsFolder = "results_c" + to_string((int)cost) + 
+                           "_b" + to_string((int)benefit) +
+                           "_e1-" + to_string((int)(100 * error1)) + 
+                           "_e2-" + to_string((int)(100 * error2));
+    system(("mkdir " + resultsFolder).c_str());                                            // Create subfolder for results
+
+    auto start = chrono::high_resolution_clock::now();                  // For terminal output
+    
+    int nrThreads = thread::hardware_concurrency();                     // Read the number of threads available on current device
+    if(nrThreads == 0){                                                 // If the above fails...
+        nrThreads = 4;                                                  // ...set the number of threads to 4
+    }
+    cout << "Running with " << nrThreads << " number of threads\n";     // Write number of threads to terminal
 
 
-    auto start = chrono::high_resolution_clock::now();
+    //--- simulation loop ---
+    for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){
+    vector<thread> threads;                      // still needs vector here
+    threads.reserve(nrThreads);                  // but we can reserve space
 
-
-    for(int simulation = 0; simulation < 1; ++simulation){
-        array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[simulation];
-
-        // Used to check the outcome of one poulation! can be removed later
-        //if (i != 126) { 
-        //    continue;
-        //}
-        cout << "Population " << simulation << "\n";
-        // Used to check the string of frequencies
-        for (auto x : nrIndividualsPerStrategy) {
-            cout << x << ", ";
-        }
-        cout << endl;
-        
-
-        classPopulation myPopulation(socialNorms,
-                                     strategies,
-                                     nrIndividualsPerStrategy,
-                                     startingReputation,
-                                     startingPayOff);
-        
-        ofstream outputFile("results/Output_" + to_string(simulation) + ".csv");
-                if(!outputFile.is_open()){
-                cerr<<"error:unavle to open output file\n";
-                exit(EXIT_FAILURE);
-        }
-
-        for (int replica = 0; replica < replicasPerPop; ++ replica){
-            myPopulation.ResetPayOffs();
-            if (replica % 100 == 0) {
-                cout << "Simulation " << simulation << " replica " << replica << "/" << replicasPerPop << "\n";
-            }   
-            for (int round = 0; round < totalRounds; ++round) {
-                myPopulation.PlayInteractionRound(rng, error1, error2, cost, benefit);
-            }
+        for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){
+            int sim = simulation + t;
             
-            Results = myPopulation.DetermineStrategyPayOff();
-            outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";
-
+            threads.push_back(thread([=](){
+                mt19937_64 rng(baseSeed + sim);
+                array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];
+                classPopulation myPopulation(socialNorms,
+                                                actionRules,
+                                                nrIndividualsPerStrategy,
+                                                startingReputation,
+                                                startingPayOff);
+                ofstream outputFile(resultsFolder + "/Output_" + to_string(sim) + ".csv");
+                if(!outputFile.is_open()){
+                    cerr << "Error: unable to open output file\n";
+                    return;
+                }
+                StrategyPayOff Results;
+                for(int replica = 0; replica < replicasPerPop; ++replica){
+                    myPopulation.ResetPayOffs();
+                    for(int round = 0; round < totalRounds; ++round){
+                        myPopulation.PlayInteractionRound(rng, error1, error2, cost, benefit);
+                    }
+                    Results = myPopulation.DetermineStrategyPayOff();
+                    outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";
+                }
+                outputFile.close();
+            }));
         }
-        outputFile.close();
-        cout << endl;
+        for(auto& t : threads){
+            t.join();
+        }
+        auto batchEnd = chrono::high_resolution_clock::now();
+        chrono::duration<double> elapsed = batchEnd - start;
+        cout << "Completed simulations " << simulation << " to " 
+            << min(simulation + nrThreads - 1, nrPermutations - 1) 
+            << " | Time elapsed: " << elapsed.count() << "s"
+            << " | Estimated remaining: " 
+            << (elapsed.count() / (simulation + nrThreads)) * (nrPermutations - simulation - nrThreads) 
+            << "s\n";
     }
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> elapsed = end - start;
-    cout << "Time: " << elapsed.count() << " seconds\n";
     return 0;
 }

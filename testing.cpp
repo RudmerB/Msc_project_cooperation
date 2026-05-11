@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <string>
+#include <thread>
 using namespace std;
 
 void GetSeedRNG(mt19937_64 &rng)
@@ -45,6 +46,9 @@ int main()
         cout << array2[i];
     }
     */
+
+    int nrThreads = thread::hardware_concurrency();
+    cout << "Running with " << nrThreads << " threds" << endl;
 
    bool statement = false;
    if (statement) {
