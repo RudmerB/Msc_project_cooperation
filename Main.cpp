@@ -10,21 +10,21 @@
 #include <algorithm>
 #include <thread>
 using namespace std;
-/*==========================================================================================
-============================================================================================
-==========================          Global parameters           ============================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+---------------------------         Global parameters            ---------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 constexpr int nrIndividuals     = 100;              // Nr of individuals in one population
 constexpr int nrStrategies      = 12;               // Total number of social strategies (Leading eight, image-scoring etc.)
 constexpr int nrPermutations    = 132;              // Number of population permutations (number of unique strategy combinations)
 
 
-/*==========================================================================================
-============================================================================================
-=================       Check global paramaters with input file         ====================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+---------------         Check global parameters with input file             ----------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 void checkGlobalParameters()
 {
     ifstream csvFile("InputFile.csv");
@@ -77,11 +77,35 @@ void checkGlobalParameters()
 //https://stackoverflow.com/questions/50085440/what-is-the-fastest-way-to-get-the-number-of-rows-in-a-csv-file
 
 
-/*==========================================================================================
-============================================================================================
-==========================       Social norms (struct)          ============================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+---------------         Reading strategy frequencies from file            ------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
+array<int, nrStrategies> ReadStrategyFrequencies(ifstream& csvFile)
+{
+    string line;                                            // Initiate a string
+    array<int, nrStrategies> nrIndividualsPerStrategy;      // create/empty array
+
+    getline(csvFile, line);                                 // read next line in input file
+    stringstream ss(line);                                  // Creates a copy (stream object) of the line 
+
+    for(int j = 0; j < nrStrategies; ++j) {                 // loop over strategies
+        string value;                                       // Inititae a string
+        getline(ss, value, ',');                            // Read the value of the current postion in stream object 
+        nrIndividualsPerStrategy[j] = stoi(value);          // set the nrIndividuals in array to that value
+    }
+
+
+    return nrIndividualsPerStrategy;
+}
+
+
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+------------------------         Social Norms (struct)             -------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 struct strategiesSocialNorms{
     // 8 letter codes how leading eight strategies update reputation of donors
     // G/B = Good/Bad reputation, C/D = Cooperation/Defection
@@ -106,11 +130,11 @@ struct strategiesSocialNorms{
 };
 
 
-/*==========================================================================================
-============================================================================================
-==========================       Action rules (struct)          ============================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+------------------------         Action rules (struct)             -------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 struct strategiesActionRules{
     // 4 letter codes on how leading eight strategies behave as donor
     // there are only 2 different options
@@ -135,11 +159,11 @@ struct strategiesActionRules{
 };
 
 
-/*==========================================================================================
-============================================================================================
-==========================          Seeding Function            ============================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+---------------------------         Seeding function             ---------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 void GetSeedRNG(mt19937_64 &rng)
 {
     unsigned seed =
@@ -149,11 +173,11 @@ void GetSeedRNG(mt19937_64 &rng)
 }
 
 
-/*==========================================================================================
-============================================================================================
-==========================          Shuffling function          ============================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+--------------------------         Shuffling function             --------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 void shuffle(array<int, nrIndividuals> &array,                      // Shuffle from c++ course, exercise 14.2
              mt19937_64 &rng)
 {
@@ -167,11 +191,29 @@ void shuffle(array<int, nrIndividuals> &array,                      // Shuffle f
 }
 
 
-/*==========================================================================================
-============================================================================================
-==========================         Individual (struct)          ============================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+-----------------------         Create results directory             -----------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
+string CreateResultsDirectory(const double cost, 
+                              const double benefit,
+                              const double error1,
+                              const double error2)
+{
+    string resultsFolder = "results_c" + to_string((int)cost) + 
+                           "_b" + to_string((int)benefit) +
+                           "_e1-" + to_string((int)(100 * error1)) + 
+                           "_e2-" + to_string((int)(100 * error2));
+    system(("mkdir " + resultsFolder).c_str());                         // Create subfolder for results
+    return resultsFolder;
+}
+
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+--------------------------         Individual (struct)            --------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 struct Individual{
     array<char, 8> socialNorm;                                      // Each individual has a social norm (how he updates reputations when he is observer)
     array<char, 4> actionRule;                                      // Each individual has action rules (what to do when he himself is actor)
@@ -185,11 +227,11 @@ struct Individual{
 };
 
 
-/*==========================================================================================
-============================================================================================
-========================          Individual constructor          ==========================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+-------------------------         Individual constructor            ------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 Individual::Individual(const char& startingReputation,
                        const double& startingPayOff)
 {
@@ -198,11 +240,11 @@ Individual::Individual(const char& startingReputation,
 }
 
 
-/*==========================================================================================
-============================================================================================
-==========================            Results Struct            ============================
-============================================================================================
-==========================================================================================*/
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+----------------------------         Results (struct)            ---------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 struct StrategyPayOff{
     double mutantPayOff;
     double avgResidentPayOff;
@@ -216,42 +258,51 @@ struct StrategyPayOff{
 ==========================================================================================*/
 class classPopulation{
 public:
-    classPopulation(const strategiesSocialNorms& socialNorms,
+    classPopulation(const strategiesSocialNorms& socialNorms,                       // Population class constructor
                     const strategiesActionRules& actionRules,
                     const array<int, nrStrategies>& nrIndividualsPerStrategy,
-                    const char& startingReputation,
-                    const double& startingPayOff);
+                    const char startingReputation,
+                    const double startingPayOff);
 
-    void printtest();
+    void printtest();                                                               // Print test (not used in current code 13/05)
 
-    bool DetermineAction(const int& donor,
-                         const int& recipient,
+    bool DetermineAction(const int donor,                                           // Function to determine action based on action rule
+                         const int recipient,
                          uniform_real_distribution<double>& uniform,
                          mt19937_64& rng,
-                         const double& error1);
+                         const double error1);
 
-    void UpdatePayOff(const bool& action,
-                      const int& donor,
-                      const int& recipient,
-                      const double& cost,
-                      const double& benefit);
+    void UpdatePayOff(const bool action,                                           // Update pay off based on the donor's action
+                      const int donor,
+                      const int recipient,
+                      const double cost,
+                      const double benefit);
 
-    void UpdatePrivateReputations(const bool& action,
-                                  const int& donor,
-                                  const int& recipient,
+    void UpdatePrivateReputations(const bool action,                               // Update pay offs based on social norms 
+                                  const int donor,
+                                  const int recipient,
                                   uniform_real_distribution<double>& uniform,
                                   mt19937_64& rng,
-                                  const double& error2);
+                                  const double error2);
 
-    void PlayInteractionRound(mt19937_64 &rng,
-                              const double &error1,
-                              const double &error2,
-                              const double &cost,
-                              const double &benefit);
+    void PlayInteractionRound(mt19937_64 &rng,                                      // Play one round of interactions = 
+                              const double error1,                                  // Everyone is in an interaction once, either as donor or recipient
+                              const double error2,                                  // Meaning nrIndividuals / 2 interactions are played 
+                              const double cost,
+                              const double benefit);
     
-    StrategyPayOff DetermineStrategyPayOff();
+    StrategyPayOff DetermineStrategyPayOff();                                       // Give both the pay offs of the mutant and the average resident pay off
 
     void ResetPayOffs();
+
+    void RunReplicas(const int replicasPerPop,
+                     const int totalRounds,
+                     mt19937_64 &rng,
+                     const double error1,
+                     const double error2,
+                     const double cost,
+                     const double benefit,
+                     ofstream &outputFile);
 
 private:
     array <Individual, nrIndividuals> population;
@@ -266,32 +317,38 @@ private:
 classPopulation::classPopulation(const strategiesSocialNorms& socialNorms,
                                  const strategiesActionRules& actionRules,
                                  const array<int, nrStrategies>& nrIndividualsPerStrategy,
-                                 const char& startingReputation,
-                                 const double& startingPayOff
+                                 const char startingReputation,
+                                 const double startingPayOff
                                  )
 {
-    int maxValue = *max_element(nrIndividualsPerStrategy.begin(), nrIndividualsPerStrategy.end());
-    int populationIndex = 0;                                                        // Keeps tab on how many individuals have been assigned
+    int maxValue = *max_element(nrIndividualsPerStrategy.begin(),                       // Find the highest value of the current permutation
+                                nrIndividualsPerStrategy.end());
+    int populationIndex = 0;                                                            // Keeps tab on how many individuals have been assigned
 
-    for(int i = 0; i < nrIndividualsPerStrategy.size(); ++i) {                      // Loop over the different strategies
-        for(int count = 0; count < nrIndividualsPerStrategy[i]; ++count) {          // Loop over the number of individuals per strategy 
-            if (populationIndex >= nrIndividuals) {                                 // Safety check: 'Are we counting more individuals than possible?'
-                throw logic_error("The index counts a larger population than the real population size.\n");
+    for(int i = 0; i < nrStrategies; ++i) {                                             // Loop over the different strategies
+        bool isResident = (nrIndividualsPerStrategy[i] == maxValue);                    // Check if the current strategy has the most individuals, coin this the resident strategy
+        
+        for(int count = 0; count < nrIndividualsPerStrategy[i]; ++count) {              // Loop over the number of individuals per strategy 
+            if (populationIndex >= nrIndividuals) {                                     // Safety check: 'Are we counting more individuals than possible?'
+                throw logic_error("The index counts a larger population " 
+                                  "than the real population size.\n");
             }
-            population[populationIndex] = Individual(startingReputation, startingPayOff);
-            population[populationIndex].socialNorm = socialNorms.socialNorm[i];     // Assign the respective social norm to the individual of that strategy
-            population[populationIndex].actionRule = actionRules.actionRule[i];     // Do the same for the action rule
+            
+            population[populationIndex] = Individual(startingReputation,                // Construct an individual at this location with reputation and payoff given in main()
+                                                     startingPayOff);
+            population[populationIndex].socialNorm = socialNorms.socialNorm[i];         // Assign the respective social norm to the individual of that strategy
+            population[populationIndex].actionRule = actionRules.actionRule[i];         // Do the same for the action rule
 
-            if (maxValue == nrIndividualsPerStrategy[i]) {
-                population[populationIndex].isResident = true;
+            if (isResident) {                                                           // Check if the current strategy is the resident strategy
+                population[populationIndex].isResident = true;                          // Store the individual as a resident (used for average payoff later)
             }
-
-            ++populationIndex;                                                      // Add an individual to the counter
+            ++populationIndex;                                                          // Increase the counter to initiate unassigned individuals
         }
     }
 
-    if (populationIndex != nrIndividuals) {                                     // Safety check: 'Did we assign all individuals?'
-        throw logic_error("The number of assigned individuals does not equal the population size.\n");
+    if (populationIndex != nrIndividuals) {                                             // Safety check: 'Did we assign the correct number of individuals?'
+        throw logic_error("The number of assigned individuals does not "
+                          "equal the population size.\n");
     }
 }
 
@@ -331,18 +388,18 @@ void classPopulation::printtest()
 =====================         Population - Determine Action          =======================
 ============================================================================================
 ==========================================================================================*/
-bool classPopulation::DetermineAction(const int& donor,
-                                      const int& recipient,
+bool classPopulation::DetermineAction(const int donor,
+                                      const int recipient,
                                       uniform_real_distribution<double>& uniform,
                                       mt19937_64& rng,
-                                      const double& error1)
+                                      const double error1)
 {
     bool bDonorRep = (population[donor].privateReputations[donor] == 'G') ? 0 : 1;                      // What reputation has the donor from their own perspective?
     bool bRecipientRep = (population[donor].privateReputations[recipient] == 'G') ? 0 : 1;              // What reputation has the recipient from the donor's persepctive?
 
-    bool bAction = (population[donor].actionRule[2 * bDonorRep + bRecipientRep] == 'C') ? 0 : 1;        // The donor performs an action based on their action rule (Formula by AI)
+    bool bAction = (population[donor].actionRule[2 * bDonorRep + bRecipientRep] == 'C') ? 0 : 1;        // The donor performs an action based on their action rule 
   
-    if (uniform(rng) <= error1) {                                                                       // Take a random number from the distribution and compare to error rate
+    if (uniform(rng) < error1) {                                                                        // Take a random number from the distribution and compare to error rate
         bAction = !bAction;                                                                             // Convert the choosen action to opposite action
         }
 
@@ -355,11 +412,11 @@ bool classPopulation::DetermineAction(const int& donor,
 =====================           Population - Update Payoff           =======================
 ============================================================================================
 ==========================================================================================*/
-void classPopulation::UpdatePayOff(const bool& action,
-                                   const int& donor,
-                                   const int& recipient,
-                                   const double& cost,
-                                   const double& benefit)
+void classPopulation::UpdatePayOff(const bool action,
+                                   const int donor,
+                                   const int recipient,
+                                   const double cost,
+                                   const double benefit)
 {
         if (action == 0) {                                  // 0 means cooperation happened
             population[donor].PayOff -= cost;               // Donor pays cost
@@ -373,16 +430,16 @@ void classPopulation::UpdatePayOff(const bool& action,
 =====================         Population - Update reputations        =======================
 ============================================================================================
 ==========================================================================================*/
-void classPopulation::UpdatePrivateReputations(const bool& action,
-                                               const int& donor,
-                                               const int& recipient,
+void classPopulation::UpdatePrivateReputations(const bool action,
+                                               const int donor,
+                                               const int recipient,
                                                uniform_real_distribution<double>& uniform,
                                                mt19937_64& rng,
-                                               const double& error2)
+                                               const double error2)
 {
     for (int observer = 0; observer < nrIndividuals; ++observer){                                       // Loop over the population
         if (observer == recipient){                                                                     // If the recipient is the observer...
-            continue;                                                                                   // ...Move to the next individual
+            continue;                                                                                   // ...move to next individual (recipient judging their donor would be direct reciprocity)
         }
 
         bool bDonorRepObserver      = (population[observer].privateReputations[donor]                   // What reputation has the donor from the observer's perspective?
@@ -391,9 +448,9 @@ void classPopulation::UpdatePrivateReputations(const bool& action,
                                         == 'G') ? 0 : 1;
 
         bool bNewReputation = (population[observer].socialNorm[4 * bDonorRepObserver +                  // The observer gives a new reputation to donor based on their social rule
-                                                                2 * bRecipientRepObserver +             // (Formula by AI)
+                                                                2 * bRecipientRepObserver +             
                                                                 action] == 'G') ? 0 : 1;
-        if (uniform(rng) <= error2) {                                                                   // Take a random number from the distribution and compare to error rate
+        if (uniform(rng) < error2) {                                                                    // Take a random number from the distribution and compare to error rate
             bNewReputation = !bNewReputation;                                                           // Convert the assigned reputation to opposite reputation
         }
 
@@ -408,10 +465,10 @@ void classPopulation::UpdatePrivateReputations(const bool& action,
 ============================================================================================
 ==========================================================================================*/
 void classPopulation::PlayInteractionRound(mt19937_64 &rng,
-                                           const double &error1,
-                                           const double &error2,
-                                           const double &cost,
-                                           const double &benefit)
+                                           const double error1,
+                                           const double error2,
+                                           const double cost,
+                                           const double benefit)
 {
     array <int, nrIndividuals> Indexes;                             // Create an array of indexes
     iota(begin(Indexes), end(Indexes), 0);                          // Fill the array with 0, 1, 2, etc
@@ -437,55 +494,44 @@ void classPopulation::PlayInteractionRound(mt19937_64 &rng,
 
 /*==========================================================================================
 ============================================================================================
-=====================           Read strategies from File            =======================
-============================================================================================
-==========================================================================================*/
-array<int, nrStrategies> ReadStrategyFrequencies(ifstream& csvFile)
-{
-    string line;                                            // Initiate a string
-    array<int, nrStrategies> nrIndividualsPerStrategy;      // create/empty array
-
-    getline(csvFile, line);                                 // read next line in input file
-    stringstream ss(line);                                  // Creates a copy (stream object) of the line 
-
-    for(int j = 0; j < nrStrategies; ++j) {                 // loop over strategies
-        string value;                                       // Inititae a string
-        getline(ss, value, ',');                            // Read the value of the current postion in stream object 
-        nrIndividualsPerStrategy[j] = stoi(value);          // set the nrIndividuals in array to that value
-    }
-
-
-    return nrIndividualsPerStrategy;
-}
-
-
-/*==========================================================================================
-============================================================================================
 =====================       Mutant and  Average Resident Payoff       =======================
 ============================================================================================
 ==========================================================================================*/
 StrategyPayOff classPopulation::DetermineStrategyPayOff()
 {
     StrategyPayOff Results;                                     // Create a structure for results
-    double dSumPayOff = 0.0;                                    // Initiate sum of pay offs
+    double dResidentSum = 0.0;                                  // Initiate sum of pay offs
     int iResidentsNr = 0;                                       // Initiate resident counter
+    double dMutantSum = 0.0;
+    int iMutantsNr = 0;
 
     for (int i = 0; i < nrIndividuals; ++i) {                   // Loop over all individuals
         if (population[i].isResident) {                         // Check if the individual is a resident
-            dSumPayOff += population[i].PayOff;                 // Add their payoff to the sum
+            dResidentSum += population[i].PayOff;               // Add their payoff to the sum
             ++ iResidentsNr;                                    // Increase resident counter with 1
         }
         else {                                                  // If an indvidual is not a resident
-            Results.mutantPayOff = population[i].PayOff;        // Store the mutant payoff (only works if there's one mutant)
+            dMutantSum += population[i].PayOff;
+            ++ iMutantsNr;
         }
     }
+    
+    if (iResidentsNr == 0 || iMutantsNr == 0) {                 // Safety check: 'Did we assign the correct number of individuals?'
+        throw logic_error("There are no residents or mutants found.\n");
+    }
 
-    Results.avgResidentPayOff = dSumPayOff/iResidentsNr;        // Store the average resident payoff in the struct
+    Results.avgResidentPayOff = dResidentSum/iResidentsNr;      // Store the average resident payoff in the struct
+    Results.mutantPayOff = dMutantSum/iMutantsNr;
+
     return Results;                                             // Return the struct
 }
 
 
-
+/*==========================================================================================
+============================================================================================
+==================       Reset Mutant and  Average Resident Payoff       ===================
+============================================================================================
+==========================================================================================*/
 void classPopulation::ResetPayOffs()
 {
     for (auto& individual : population) {
@@ -496,9 +542,59 @@ void classPopulation::ResetPayOffs()
 
 /*==========================================================================================
 ============================================================================================
-====================                       Main                      =======================
+=============================       Simulation Replicas       ==============================
 ============================================================================================
 ==========================================================================================*/
+void classPopulation::RunReplicas(const int replicasPerPop,
+                                  const int totalRounds,
+                                  mt19937_64 &rng,
+                                  const double error1,
+                                  const double error2,
+                                  const double cost,
+                                  const double benefit,
+                                  ofstream &outputFile)
+{
+    StrategyPayOff Results;
+    for(int replica = 0; replica < replicasPerPop; ++replica){
+        ResetPayOffs();
+        for(int round = 0; round < totalRounds; ++round){
+            PlayInteractionRound(rng, error1, error2, cost, benefit);
+        }
+        Results = DetermineStrategyPayOff();
+        outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";
+    }    
+}
+
+
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+-----------------------       Terminal output Progress               -----------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
+void PrintProgress(const int simulation,
+                   const int nrThreads,
+                   const int nrPermutations,
+                   const chrono::high_resolution_clock::time_point start)
+{
+    auto batchEnd = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed = batchEnd - start;
+    cout << "Completed simulations " << simulation << " to " 
+         << min(simulation + nrThreads - 1, nrPermutations - 1) 
+         << " | Time elapsed: " << elapsed.count() << "s"
+         << " (" << elapsed.count() / 60 << "m)"
+         << " | Estimated remaining: " 
+         << (elapsed.count() / (simulation + nrThreads)) * (nrPermutations - simulation - nrThreads) 
+         << "s"
+         << " (" << ((elapsed.count() / (simulation + nrThreads)) * (nrPermutations - simulation - nrThreads)) / 60 << "m)"
+         << "\n";
+}
+
+
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+----------------------------------         Main             --------------------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
 int main()
 {
     //--- parameters ---
@@ -516,6 +612,10 @@ int main()
     mt19937_64 rng;                         // Initialize rng
     GetSeedRNG(rng);                        // Seed the rng with current time
     unsigned int baseSeed = rng();          // Extract base seed
+
+
+    //--- timer for terminal output ---
+    auto start = chrono::high_resolution_clock::now();                  // For terminal output
 
 
     //--- initialize structures ---
@@ -541,13 +641,9 @@ int main()
 
 
     //--- setup ---
-    string resultsFolder = "results_c" + to_string((int)cost) + 
-                           "_b" + to_string((int)benefit) +
-                           "_e1-" + to_string((int)(100 * error1)) + 
-                           "_e2-" + to_string((int)(100 * error2));
-    system(("mkdir " + resultsFolder).c_str());                                            // Create subfolder for results
+    string resultsFolder = CreateResultsDirectory(cost, benefit,        // Create results directory and stores the name prefix for result files
+                                                  error1, error2);
 
-    auto start = chrono::high_resolution_clock::now();                  // For terminal output
     
     int nrThreads = thread::hardware_concurrency();                     // Read the number of threads available on current device
     if(nrThreads == 0){                                                 // If the above fails...
@@ -557,49 +653,42 @@ int main()
 
 
     //--- simulation loop ---
-    for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){
-    vector<thread> threads;                      // still needs vector here
-    threads.reserve(nrThreads);                  // but we can reserve space
+    for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
+    vector<thread> threads;                      // create vector
+    threads.reserve(nrThreads);                  // reserve space for vector
 
-        for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){
+        for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){              // Gives one simulation to each thread, and prevents out of bounds
             int sim = simulation + t;
             
-            threads.push_back(thread([=](){
-                mt19937_64 rng(baseSeed + sim);
-                array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];
-                classPopulation myPopulation(socialNorms,
-                                                actionRules,
-                                                nrIndividualsPerStrategy,
-                                                startingReputation,
-                                                startingPayOff);
-                ofstream outputFile(resultsFolder + "/Output_" + to_string(sim) + ".csv");
-                if(!outputFile.is_open()){
+            threads.push_back(thread([=](){                                                 // Create lambda function (function with no name)
+                mt19937_64 rng(baseSeed + sim);                                             // Create a rng with time and simulation nr
+                array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];    // Store strategy distribution of population 
+                
+                classPopulation myPopulation(socialNorms,                                   // Create population
+                                             actionRules,
+                                             nrIndividualsPerStrategy,
+                                             startingReputation,
+                                             startingPayOff);
+                
+                ofstream outputFile(resultsFolder + "/Output_" +                            // Create output file for population
+                                    to_string(sim) + ".csv");
+                if(!outputFile.is_open()){                                                  // Open output file
                     cerr << "Error: unable to open output file\n";
                     return;
                 }
-                StrategyPayOff Results;
-                for(int replica = 0; replica < replicasPerPop; ++replica){
-                    myPopulation.ResetPayOffs();
-                    for(int round = 0; round < totalRounds; ++round){
-                        myPopulation.PlayInteractionRound(rng, error1, error2, cost, benefit);
-                    }
-                    Results = myPopulation.DetermineStrategyPayOff();
-                    outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";
-                }
-                outputFile.close();
+                
+                myPopulation.RunReplicas(replicasPerPop, totalRounds,                       // Run replicas of the population
+                                         rng, error1, error2, cost, 
+                                         benefit, outputFile);
+                outputFile.close();                                                         // Close output file
             }));
         }
-        for(auto& t : threads){
-            t.join();
+
+        for(auto& t : threads){                                                             // Check all threads                
+            t.join();                                                                       // Wait for all threads to be done
         }
-        auto batchEnd = chrono::high_resolution_clock::now();
-        chrono::duration<double> elapsed = batchEnd - start;
-        cout << "Completed simulations " << simulation << " to " 
-            << min(simulation + nrThreads - 1, nrPermutations - 1) 
-            << " | Time elapsed: " << elapsed.count() << "s"
-            << " | Estimated remaining: " 
-            << (elapsed.count() / (simulation + nrThreads)) * (nrPermutations - simulation - nrThreads) 
-            << "s\n";
+
+        PrintProgress(simulation, nrThreads, nrPermutations, start);                        // Print to terminal
     }
     return 0;
 }
