@@ -315,7 +315,7 @@ public:
                      ofstream &outputFile);
 
 private:
-    array <Individual, nrIndividuals> population;
+    array <Individual, nrIndividuals> population;                                    // Store the individuals in an array
 };
 
 
@@ -365,7 +365,7 @@ classPopulation::classPopulation(const strategiesSocialNorms& socialNorms,
 
 /*==========================================================================================
 ============================================================================================
-=====================          Population - terminal tester          =======================
+=====================          Population - terminal tester (unused) =======================
 ============================================================================================
 ==========================================================================================*/
 void classPopulation::printtest()
@@ -568,14 +568,14 @@ void classPopulation::RunReplicas(const int replicasPerPop,
                                   const double benefit,
                                   ofstream &outputFile)
 {
-    StrategyPayOff Results;
+    StrategyPayOff Results;                                                                // Create a struct for results
     for(int replica = 0; replica < replicasPerPop; ++replica){
         ResetIndividuals(startingPayOff, startingReputation);
         for(int round = 0; round < totalRounds; ++round){
-            PlayInteractionRound(rng, error1, error2, cost, benefit);
+            PlayInteractionRound(rng, error1, error2, cost, benefit);                      // Play interactions for certain number of rounds
         }
-        Results = DetermineStrategyPayOff();
-        outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";
+        Results = DetermineStrategyPayOff();                                               // Store payoffs
+        outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";    // Write payoffs to output file
     }    
 }
 
@@ -668,8 +668,8 @@ int main()
 
     //--- simulation loop ---
     for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
-    vector<thread> threads;                      // create vector
-    threads.reserve(nrThreads);                  // reserve space for vector
+    vector<thread> threads;                                                                 // Create vector
+    threads.reserve(nrThreads);                                                             // Reserve space for vector
 
         for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){              // Gives one simulation to each thread, and prevents out of bounds
             int sim = simulation + t;
