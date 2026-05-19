@@ -201,10 +201,17 @@ string CreateResultsDirectory(const double cost,
                               const double error1,
                               const double error2)
 {
+    ostringstream oss_e1;
+    ostringstream oss_e2;
+    oss_e1 << defaultfloat << (double)error1;
+    oss_e2 << defaultfloat << (double)error2;
+    
+    //"_e2-" + oss.str();
+
     string resultsFolder = "results_c" + to_string((int)cost) + 
                            "_b" + to_string((int)benefit) +
-                           "_e1-" + to_string((int)(100 * error1)) + 
-                           "_e2-" + to_string((int)(100 * error2));
+                           "_e1-" + oss_e1.str() + 
+                           "_e2-" + oss_e2.str();
     system(("mkdir " + resultsFolder).c_str());                         // Create subfolder for results
     return resultsFolder;
 }
@@ -293,9 +300,12 @@ public:
     
     StrategyPayOff DetermineStrategyPayOff();                                       // Give both the pay offs of the mutant and the average resident pay off
 
-    void ResetPayOffs();
+    void ResetIndividuals(const double startingPayOff,
+                          const char stratingReputation);
 
     void RunReplicas(const int replicasPerPop,
+                     const double startingPayOff,
+                     const char startingReputations,
                      const int totalRounds,
                      mt19937_64 &rng,
                      const double error1,
@@ -529,13 +539,15 @@ StrategyPayOff classPopulation::DetermineStrategyPayOff()
 
 /*==========================================================================================
 ============================================================================================
-==================       Reset Mutant and  Average Resident Payoff       ===================
+======================       Reset Payoff and Reset Reputations     ========================
 ============================================================================================
 ==========================================================================================*/
-void classPopulation::ResetPayOffs()
+void classPopulation::ResetIndividuals(const double startingPayOff,
+                                       const char startingReputation)
 {
     for (auto& individual : population) {
-        individual.PayOff = 0.0;
+        individual.PayOff = startingPayOff;
+        individual.privateReputations.fill(startingReputation);
     }
 }
 
@@ -546,6 +558,8 @@ void classPopulation::ResetPayOffs()
 ============================================================================================
 ==========================================================================================*/
 void classPopulation::RunReplicas(const int replicasPerPop,
+                                  const double startingPayOff,
+                                  const char startingReputation,
                                   const int totalRounds,
                                   mt19937_64 &rng,
                                   const double error1,
@@ -556,7 +570,7 @@ void classPopulation::RunReplicas(const int replicasPerPop,
 {
     StrategyPayOff Results;
     for(int replica = 0; replica < replicasPerPop; ++replica){
-        ResetPayOffs();
+        ResetIndividuals(startingPayOff, startingReputation);
         for(int round = 0; round < totalRounds; ++round){
             PlayInteractionRound(rng, error1, error2, cost, benefit);
         }
@@ -604,8 +618,8 @@ int main()
     double  benefit             = 2;
     char    startingReputation  = 'G';
     double  startingPayOff      = 0.0;
-    int     totalRounds         = 1000;
-    int     replicasPerPop      = 1000;
+    int     totalRounds         = 100;
+    int     replicasPerPop      = 10;
 
 
     //--- random nr generator ---
@@ -677,9 +691,16 @@ int main()
                     return;
                 }
                 
-                myPopulation.RunReplicas(replicasPerPop, totalRounds,                       // Run replicas of the population
+                myPopulation.RunReplicas(replicasPerPop, startingPayOff,                    // Run replicas of the population
+                                         startingReputation, totalRounds, 
                                          rng, error1, error2, cost, 
                                          benefit, outputFile);
+                //if (sim == 21) {
+                //    myPopulation.printtest();
+                //    for (auto x : nrIndividualsPerStrategy) {
+                //    cout << x << ", ";
+                //    }
+                //}
                 outputFile.close();                                                         // Close output file
             }));
         }

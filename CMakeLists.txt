@@ -10,7 +10,7 @@ string(REPLACE " " "_" ProjectName ${ProjectDir})
 project(${ProjectName})
 
 # Add source to this project's executable.
-add_executable (${ProjectName} "Main.cpp")
+add_executable (${ProjectName} "ComputeCI.cpp")
 
 target_link_options(${ProjectName} PRIVATE -static)
 set_target_properties(${ProjectName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/$<0:>)
