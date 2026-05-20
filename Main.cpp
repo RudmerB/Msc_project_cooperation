@@ -612,14 +612,14 @@ void PrintProgress(const int simulation,
 int main()
 {
     //--- parameters ---
-    double  error1              = 0.01;
-    double  error2              = 0.05;
+    double  error1              = 0.0;
+    double  error2              = 0.0;
     double  cost                = 1;
     double  benefit             = 2;
     char    startingReputation  = 'G';
     double  startingPayOff      = 0.0;
-    int     totalRounds         = 100;
-    int     replicasPerPop      = 10;
+    int     totalRounds         = 500;
+    int     replicasPerPop      = 1000;
 
 
     //--- random nr generator ---
