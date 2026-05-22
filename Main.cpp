@@ -199,20 +199,27 @@ void shuffle(array<int, nrIndividuals> &array,                      // Shuffle f
 string CreateResultsDirectory(const double cost, 
                               const double benefit,
                               const double error1,
-                              const double error2)
+                              const double error2,
+                              const int totalRounds)
 {
+    ostringstream oss_cost;
+    ostringstream oss_benefit;
     ostringstream oss_e1;
     ostringstream oss_e2;
+
+    oss_cost << defaultfloat << (double)cost;
+    oss_benefit << defaultfloat << (double)benefit;
     oss_e1 << defaultfloat << (double)error1;
     oss_e2 << defaultfloat << (double)error2;
-    
-    //"_e2-" + oss.str();
 
-    string resultsFolder = "results_c" + to_string((int)cost) + 
-                           "_b" + to_string((int)benefit) +
-                           "_e1-" + oss_e1.str() + 
-                           "_e2-" + oss_e2.str();
-    system(("mkdir " + resultsFolder).c_str());                         // Create subfolder for results
+    string resultsFolder = "results_ind" + to_string(nrIndividuals) +
+                        "_rounds" + to_string(totalRounds) +
+                        "_c" + oss_cost.str() +
+                        "_b" + oss_benefit.str() +
+                        "_e1-" + oss_e1.str() +
+                        "_e2-" + oss_e2.str();
+
+    system(("mkdir " + resultsFolder).c_str());
     return resultsFolder;
 }
 
@@ -612,10 +619,10 @@ void PrintProgress(const int simulation,
 int main()
 {
     //--- parameters ---
-    double  error1              = 0.0;
-    double  error2              = 0.0;
-    double  cost                = 1;
-    double  benefit             = 2;
+    double  error1              = 0.01;
+    double  error2              = 0.05;
+    double  cost                = 1.0;
+    double  benefit             = 2.0;
     char    startingReputation  = 'G';
     double  startingPayOff      = 0.0;
     int     totalRounds         = 500;
@@ -656,7 +663,8 @@ int main()
 
     //--- setup ---
     string resultsFolder = CreateResultsDirectory(cost, benefit,        // Create results directory and stores the name prefix for result files
-                                                  error1, error2);
+                                                  error1, error2,
+                                                  totalRounds);
 
     
     int nrThreads = thread::hardware_concurrency();                     // Read the number of threads available on current device
@@ -665,6 +673,20 @@ int main()
     }
     cout << "Running with " << nrThreads << " number of threads\n";     // Write number of threads to terminal
 
+    ofstream parameterFile(resultsFolder + "/model_parameters.csv");
+        if(!parameterFile.is_open()){
+            cerr << "Error: unable to open output file\n";
+            exit(EXIT_FAILURE);
+        }
+
+        parameterFile << "cost = " << cost
+                        << "\nbenefit = " << benefit
+                        << "\nerror1 = " << error1
+                        << "\nerror2 = " << error2
+                        << "\nnrIndividuals = " << nrIndividuals
+                        << "\nnrRounds = " << totalRounds
+                        << "\nnrReplicates = " << replicasPerPop;
+        parameterFile.close();
 
     //--- simulation loop ---
     for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
@@ -673,7 +695,8 @@ int main()
 
         for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){              // Gives one simulation to each thread, and prevents out of bounds
             int sim = simulation + t;
-            
+
+
             threads.push_back(thread([=](){                                                 // Create lambda function (function with no name)
                 mt19937_64 rng(baseSeed + sim);                                             // Create a rng with time and simulation nr
                 array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];    // Store strategy distribution of population 

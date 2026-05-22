@@ -32,12 +32,12 @@ ConfidenceInterval CalculateCI(const Container& data, double zScore = 1.96)
     double mean = sum/n;
 
 
-    double sumSQ = 0.0;
+    double SumOfSquares = 0.0;
     for (double x : data) {
-        sumSQ += (x - mean) * (x - mean);
+        SumOfSquares += (x - mean) * (x - mean);
     }
 
-    double variance = sumSQ / (n - 1);
+    double variance = SumOfSquares / (n - 1);
     double std = sqrt(variance);
     double CI = zScore * (std / sqrt(n));
 

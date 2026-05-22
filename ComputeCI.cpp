@@ -12,7 +12,7 @@ int main (){
     constexpr int nrPermutations    = 132;              // Number of population permutations (number of unique strategy combinations)
     constexpr int nrReplicas        = 1000;
 
-    system(("mkdir summaries"));
+    system("mkdir summaries");
     
     string resultsFolder;
     cout << "Enter the name of results folder : ";
@@ -25,6 +25,7 @@ int main (){
         cerr << "Error: unable to open output file\n";
         exit(EXIT_FAILURE);
     }
+    summaryFile << "simulation,mean,lowerCI,upperCI\n";
 
     for (int i = 0; i < nrPermutations; ++i){
 
@@ -62,13 +63,11 @@ int main (){
         }
         ConfidenceInterval results;
         results = CalculateCI(payOffDifference);
-        
-        cout << "lower = " << results.lower << ", mean = " << results.mean << ", upper = " << results.upper << endl;
-        //cout << "n = " << results.n << "\n";
-        //cout << "std = " << results.std << "\n";
-        //cout << "mean = " << results.mean << "\n";
-        //cout << "lower = " << results.lower << "\n";
-        //cout << "upper = " << results.upper << "\n";
+
+        summaryFile << i << "," 
+            << results.mean  << "," 
+            << results.lower << "," 
+            << results.upper << "\n";
     }
 
     return 0;
