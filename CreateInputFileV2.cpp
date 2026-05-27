@@ -7,7 +7,7 @@ using namespace std;
 
 int main()
 {
-    const int populationSize    = 100;                                        // Set population size
+    const int populationSize    = 200;                                        // Set population size
     constexpr int nrStrategies  = 12;                                        // Set number of strategies (at compile time)
     const int nrMutants         = 1;
 
