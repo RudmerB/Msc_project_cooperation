@@ -15,7 +15,7 @@ using namespace std;
 ---------------------------         Global parameters            ---------------------------
 --------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------*/
-constexpr int nrIndividuals     = 200;              // Nr of individuals in one population
+constexpr int nrIndividuals     = 150;              // Nr of individuals in one population
 constexpr int nrStrategies      = 12;               // Total number of social strategies (Leading eight, image-scoring etc.)
 constexpr int nrPermutations    = 132;              // Number of population permutations (number of unique strategy combinations)
 
@@ -620,12 +620,12 @@ int main()
 {
     //--- parameters ---
     double  error1              = 0.01;
-    double  error2              = 0.05;
+    double  error2              = 0.1;
     double  cost                = 1.0;
-    double  benefit             = 2.0;
+    double  benefit             = 1.05;
     char    startingReputation  = 'G';
     double  startingPayOff      = 0.0;
-    int     totalRounds         = 200;
+    int     totalRounds         = 150;
     int     replicasPerPop      = 1000;
 
 
