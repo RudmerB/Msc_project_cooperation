@@ -15,7 +15,7 @@ using namespace std;
 ---------------------------         Global parameters            ---------------------------
 --------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------*/
-constexpr int nrIndividuals     = 150;              // Nr of individuals in one population
+constexpr int nrIndividuals     = 200;              // Nr of individuals in one population
 constexpr int nrStrategies      = 12;               // Total number of social strategies (Leading eight, image-scoring etc.)
 constexpr int nrPermutations    = 132;              // Number of population permutations (number of unique strategy combinations)
 
@@ -164,7 +164,7 @@ struct strategiesActionRules{
 ---------------------------         Seeding function             ---------------------------
 --------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------*/
-void GetSeedRNG(mt19937_64 &rng)
+void GetSeedRNG(mt19937_64 &rng)                                    // RNG seeding function from c++ course
 {
     unsigned seed =
     static_cast<unsigned>(chrono::high_resolution_clock::now().time_since_epoch().count());
@@ -416,7 +416,8 @@ bool classPopulation::DetermineAction(const int donor,
 
     bool bAction = (population[donor].actionRule[2 * bDonorRep + bRecipientRep] == 'C') ? 0 : 1;        // The donor performs an action based on their action rule 
   
-    if (uniform(rng) < error1) {                                                                        // Take a random number from the distribution and compare to error rate
+    if (uniform(rng) < error1) {                      
+                                                          // Take a random number from the distribution and compare to error rate
         bAction = !bAction;                                                                             // Convert the choosen action to opposite action
         }
 
@@ -620,20 +621,15 @@ int main()
 {
     //--- parameters ---
     double  error1              = 0.01;
-    double  error2              = 0.1;
+    double  error2              = 0.05;
     double  cost                = 1.0;
-    double  benefit             = 1.05;
+    //double  benefit             = 2.0;
     char    startingReputation  = 'G';
     double  startingPayOff      = 0.0;
-    int     totalRounds         = 150;
+    int     totalRounds         = 200;
     int     replicasPerPop      = 1000;
 
-
-    //--- random nr generator ---
-    mt19937_64 rng;                         // Initialize rng
-    GetSeedRNG(rng);                        // Seed the rng with current time
-    unsigned int baseSeed = rng();          // Extract base seed
-
+    //Moved RNG inside the loop
 
     //--- timer for terminal output ---
     auto start = chrono::high_resolution_clock::now();                  // For terminal output
@@ -660,79 +656,90 @@ int main()
     }
     inputFile.close();                                                  // Close the input file
 
+    //NEW
+    for (double benefit = 3.0; benefit <= 10.0; benefit += 1.0) {
 
-    //--- setup ---
-    string resultsFolder = CreateResultsDirectory(cost, benefit,        // Create results directory and stores the name prefix for result files
-                                                  error1, error2,
-                                                  totalRounds);
+        cout << "Running b/c = " << benefit/cost << "\n";
+        
+        //--- random nr generator ---
+        mt19937_64 rng;                         // Initialize rng
+        GetSeedRNG(rng);                        // Seed the rng with current time
+        unsigned int baseSeed = rng();          // Extract base seed
 
-    
-    int nrThreads = thread::hardware_concurrency();                     // Read the number of threads available on current device
-    if(nrThreads == 0){                                                 // If the above fails...
-        nrThreads = 4;                                                  // ...set the number of threads to 4
-    }
-    cout << "Running with " << nrThreads << " number of threads\n";     // Write number of threads to terminal
 
-    ofstream parameterFile(resultsFolder + "/model_parameters.csv");
-        if(!parameterFile.is_open()){
-            cerr << "Error: unable to open output file\n";
-            exit(EXIT_FAILURE);
+        //--- setup ---
+        string resultsFolder = CreateResultsDirectory(cost, benefit,        // Create results directory and stores the name prefix for result files
+                                                    error1, error2,
+                                                    totalRounds);
+
+        
+        int nrThreads = thread::hardware_concurrency();                     // Read the number of threads available on current device
+        if(nrThreads == 0){                                                 // If the above fails...
+            nrThreads = 4;                                                  // ...set the number of threads to 4
         }
+        cout << "Running with " << nrThreads << " number of threads\n";     // Write number of threads to terminal
 
-        parameterFile << "cost = " << cost
-                        << "\nbenefit = " << benefit
-                        << "\nerror1 = " << error1
-                        << "\nerror2 = " << error2
-                        << "\nnrIndividuals = " << nrIndividuals
-                        << "\nnrRounds = " << totalRounds
-                        << "\nnrReplicates = " << replicasPerPop;
-        parameterFile.close();
+        ofstream parameterFile(resultsFolder + "/model_parameters.csv");
+            if(!parameterFile.is_open()){
+                cerr << "Error: unable to open output file\n";
+                exit(EXIT_FAILURE);
+            }
 
-    //--- simulation loop ---
-    for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
-    vector<thread> threads;                                                                 // Create vector
-    threads.reserve(nrThreads);                                                             // Reserve space for vector
+            parameterFile << "cost = " << cost
+                            << "\nbenefit = " << benefit
+                            << "\nerror1 = " << error1
+                            << "\nerror2 = " << error2
+                            << "\nnrIndividuals = " << nrIndividuals
+                            << "\nnrRounds = " << totalRounds
+                            << "\nnrReplicates = " << replicasPerPop;
+            parameterFile.close();
 
-        for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){              // Gives one simulation to each thread, and prevents out of bounds
-            int sim = simulation + t;
+        //--- simulation loop ---
+        for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
+        vector<thread> threads;                                                                 // Create vector
+        threads.reserve(nrThreads);                                                             // Reserve space for vector
+
+            for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){              // Gives one simulation to each thread, and prevents out of bounds
+                int sim = simulation + t;
 
 
-            threads.push_back(thread([=](){                                                 // Create lambda function (function with no name)
-                mt19937_64 rng(baseSeed + sim);                                             // Create a rng with time and simulation nr
-                array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];    // Store strategy distribution of population 
-                
-                classPopulation myPopulation(socialNorms,                                   // Create population
-                                             actionRules,
-                                             nrIndividualsPerStrategy,
-                                             startingReputation,
-                                             startingPayOff);
-                
-                ofstream outputFile(resultsFolder + "/Output_" +                            // Create output file for population
-                                    to_string(sim) + ".csv");
-                if(!outputFile.is_open()){                                                  // Open output file
-                    cerr << "Error: unable to open output file\n";
-                    return;
-                }
-                
-                myPopulation.RunReplicas(replicasPerPop, startingPayOff,                    // Run replicas of the population
-                                         startingReputation, totalRounds, 
-                                         rng, error1, error2, cost, 
-                                         benefit, outputFile);
-                //if (sim == 21) {
-                //    myPopulation.printtest();
-                //    for (auto x : nrIndividualsPerStrategy) {
-                //    cout << x << ", ";
-                //    }
-                //}
-                outputFile.close();                                                         // Close output file
-            }));
+                threads.push_back(thread([=](){                                                 // Create lambda function (function with no name)
+                    mt19937_64 rng(baseSeed + sim);                                             // Create a rng with time and simulation nr
+                    array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];    // Store strategy distribution of population 
+                    
+                    classPopulation myPopulation(socialNorms,                                   // Create population
+                                                actionRules,
+                                                nrIndividualsPerStrategy,
+                                                startingReputation,
+                                                startingPayOff);
+                    
+                    ofstream outputFile(resultsFolder + "/Output_" +                            // Create output file for population
+                                        to_string(sim) + ".csv");
+                    if(!outputFile.is_open()){                                                  // Open output file
+                        cerr << "Error: unable to open output file\n";
+                        return;
+                    }
+                    
+                    myPopulation.RunReplicas(replicasPerPop, startingPayOff,                    // Run replicas of the population
+                                            startingReputation, totalRounds, 
+                                            rng, error1, error2, cost, 
+                                            benefit, outputFile);
+                    //if (sim == 21) {
+                    //    myPopulation.printtest();
+                    //    for (auto x : nrIndividualsPerStrategy) {
+                    //    cout << x << ", ";
+                    //    }
+                    //}
+                    outputFile.close();                                                         // Close output file
+                }));
+            }
+
+            for(auto& t : threads){                                                             // Check all threads                
+                t.join();                                                                       // Wait for all threads to be done
+            }
+
+            PrintProgress(simulation, nrThreads, nrPermutations, start);                        // Print to terminal
         }
-
-        for(auto& t : threads){                                                             // Check all threads                
-            t.join();                                                                       // Wait for all threads to be done
-        }
-
-        PrintProgress(simulation, nrThreads, nrPermutations, start);                        // Print to terminal
     }
     return 0;
 }

@@ -14,6 +14,7 @@ int main (){
 
     system("mkdir summaries");
     
+    
     string resultsFolder;
     cout << "Enter the name of results folder : ";
     cin >> resultsFolder;
