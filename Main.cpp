@@ -621,9 +621,9 @@ int main()
 {
     //--- parameters ---
     double  error1              = 0.01;
-    double  error2              = 0.05;
+    double  error2              = 0.1;
     double  cost                = 1.0;
-    //double  benefit             = 2.0;
+    double  benefit             = 1.05;
     char    startingReputation  = 'G';
     double  startingPayOff      = 0.0;
     int     totalRounds         = 200;
@@ -657,9 +657,9 @@ int main()
     inputFile.close();                                                  // Close the input file
 
     //NEW
-    for (double benefit = 3.0; benefit <= 10.0; benefit += 1.0) {
+    //for (double benefit = 2.0; benefit <= 10.0; benefit += 1.0) {
 
-        cout << "Running b/c = " << benefit/cost << "\n";
+        //cout << "Running b/c = " << benefit/cost << "\n";
         
         //--- random nr generator ---
         mt19937_64 rng;                         // Initialize rng
@@ -740,6 +740,6 @@ int main()
 
             PrintProgress(simulation, nrThreads, nrPermutations, start);                        // Print to terminal
         }
-    }
+    //}
     return 0;
 }
