@@ -212,7 +212,7 @@ string CreateResultsDirectory(const double cost,
     oss_e1 << defaultfloat << (double)error1;
     oss_e2 << defaultfloat << (double)error2;
 
-    string resultsFolder = "results_ind" + to_string(nrIndividuals) +
+    string resultsFolder = "results_mutant\\results_ind" + to_string(nrIndividuals) +
                         "_rounds" + to_string(totalRounds) +
                         "_c" + oss_cost.str() +
                         "_b" + oss_benefit.str() +
@@ -220,6 +220,10 @@ string CreateResultsDirectory(const double cost,
                         "_e2-" + oss_e2.str();
 
     system(("mkdir " + resultsFolder).c_str());
+    // resultsFolder uses \\ for mkdir
+    // but ofstream uses / so replace:
+    replace(resultsFolder.begin(), resultsFolder.end(), '\\', '/');
+    
     return resultsFolder;
 }
 
@@ -626,8 +630,8 @@ int main()
     double  benefit             = 1.05;
     char    startingReputation  = 'G';
     double  startingPayOff      = 0.0;
-    int     totalRounds         = 200;
-    int     replicasPerPop      = 1000;
+    int     totalRounds         = 2;
+    int     replicasPerPop      = 2;
 
     //Moved RNG inside the loop
 
@@ -648,6 +652,7 @@ int main()
     }
 
     checkGlobalParameters();                   // Function that checks whether constexpr at top = file input
+    system("mkdir results_mutant");
 
     //--- read strategy permutation ---
     array<array<int, nrStrategies>, nrPermutations> allPopulations;     // Create an array of arrays
