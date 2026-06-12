@@ -5,13 +5,12 @@
 #include <array>
 #include <filesystem>
 
+#include "Parameters.h"
 #include "ComputeCI.h"
 using namespace std;
 
 
 int main (){
-    constexpr int nrPermutations    = 132;              // Number of population permutations (number of unique strategy combinations)
-    constexpr int nrReplicas        = 2;
 
     system("mkdir summaries");
     

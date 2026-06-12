@@ -3,4 +3,7 @@ build/
 *.exe
 *.obj
 *.ilk
-*.pbd
+*.pdb
+results_mutant/
+summaries/
+*.csv
