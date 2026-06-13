@@ -22,3 +22,11 @@ string CreateResultsDirectory(const double cost,
                               const double error1,
                               const double error2,
                               const int totalRounds);
+
+/*-----------------------       Terminal output Progress               -----------------------*/
+void PrintProgress(const int simulation,
+                   const int nrThreads,
+                   const int nrPermutations,
+                   const chrono::high_resolution_clock::time_point start,
+                   const double benefit,
+                   const double cost);

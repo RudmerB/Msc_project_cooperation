@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
+#include <iomanip>
 
 // Header Files
 #include "Parameters.h"
@@ -158,4 +159,38 @@ string CreateResultsDirectory(const double cost,
     replace(resultsFolder.begin(), resultsFolder.end(), '\\', '/');
     
     return resultsFolder;
+}
+
+
+/*------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------
+-----------------------       Terminal output Progress               -----------------------
+--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------*/
+void PrintProgress(const int simulation,
+                   const int nrThreads,
+                   const int nrPermutations,
+                   const chrono::high_resolution_clock::time_point start,
+                   const double benefit,
+                   const double cost)
+{
+    int completed = simulation + nrThreads;                                 // Number of completed simulations
+    int percentage = (completed * 100) / nrPermutations;                    // Calculate completed percentage 
+    
+    int prevPercentage = ((simulation) * 100) / nrPermutations;             // Calculate completed percentage of previous batch
+    bool crossedThreshold = (percentage / 20) > (prevPercentage / 20);      // If current division > previous devision, the run has crossed 20,40,60,80,or 100%
+    if (!crossedThreshold) return;                                          // Stop function if the threshold is not crossed
+
+    auto batchEnd = chrono::high_resolution_clock::now();                   // Start timer
+    chrono::duration<double> elapsed = batchEnd - start;                    // Calculate time passing
+
+    double remaining = ((elapsed.count() / completed) *                     // Calculate remaining time
+                        (nrPermutations - completed)) / 60;
+    
+    cout << "b/c = " << setw(2) << benefit/cost
+         << " | " << setw(3) << min(percentage, 100) << "% done"
+         << " | Time elapsed: " << fixed << setprecision(3) << elapsed.count() / 60 << "m"
+         << " | Estimated remaining: " << fixed << setprecision(3) << max(0.0, remaining) << "m"
+         << defaultfloat    // Future numbers don't have 3 decimals
+         << "\n";
 }

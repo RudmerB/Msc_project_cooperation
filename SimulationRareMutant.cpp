@@ -1,9 +1,11 @@
 // Libraries
 #include <fstream>
+#include <thread>
 
 // Header Files
 #include "Parameters.h"
 #include "BasePopulation.h"
+#include "Utilities.h"
 #include "SimulationRareMutant.h"
 using namespace std;
 
@@ -111,4 +113,86 @@ void PopulationClassRareMutant::RunReplicas(const int replicasPerPop,
         Results = DetermineStrategyPayOff();                                               // Store payoffs
         outputFile << Results.avgResidentPayOff << "," << Results.mutantPayOff << "\n";    // Write payoffs to output file
     }    
+}
+
+
+/*==========================================================================================
+============================================================================================
+=============================       Complete simulation       ==============================
+============================================================================================
+==========================================================================================*/
+void SimulationRareMutant(const double benefit,
+                          const array<array<int, nrStrategies>, nrPermutations>& allPopulations,
+                          const int nrThreads,
+                          const strategiesSocialNorms& socialNorms,
+                          const strategiesActionRules& actionRules)
+{
+    cout << "\nRunning b/c = " << benefit/cost << "\n";
+        
+    //--- random nr generator ---
+    mt19937_64 rng;                         // Initialize rng
+    GetSeedRNG(rng);                        // Seed the rng with current time
+    unsigned int baseSeed = rng();          // Extract base seed
+
+    auto startCurrentTimer = chrono::high_resolution_clock::now();                  // For terminal output
+
+    //--- setup ---
+    string resultsFolder = CreateResultsDirectory(cost, benefit,        // Create results directory and stores the name prefix for result files
+                                                error1, error2,
+                                                totalRounds);
+
+
+    ofstream parameterFile(resultsFolder + "/model_parameters.csv");
+        if(!parameterFile.is_open()){
+            cerr << "Error: unable to open output file\n";
+            exit(EXIT_FAILURE);
+        }
+
+        parameterFile << "cost = " << cost
+                        << "\nbenefit = " << benefit
+                        << "\nerror1 = " << error1
+                        << "\nerror2 = " << error2
+                        << "\nnrIndividuals = " << nrIndividuals
+                        << "\nnrRounds = " << totalRounds
+                        << "\nnrReplicates = " << nrReplicas;
+        parameterFile.close();
+
+    //--- simulation loop ---
+    for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
+    vector<thread> threads;                                                                 // Create vector
+    threads.reserve(nrThreads);                                                             // Reserve space for vector
+
+        for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){              // Gives one simulation to each thread, and prevents out of bounds
+            int sim = simulation + t;
+
+
+            threads.push_back(thread([=](){                                                 // Create lambda function (function with no name)
+                mt19937_64 rng(baseSeed + sim);                                             // Create a rng with time and simulation nr
+                array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];    // Store strategy distribution of population 
+                
+                PopulationClassRareMutant myPopulation(socialNorms,                                   // Create population
+                                            actionRules,
+                                            nrIndividualsPerStrategy,
+                                            startingReputation,
+                                            startingPayOff);
+                
+                ofstream outputFile(resultsFolder + "/Output_" +                            // Create output file for population
+                                    to_string(sim) + ".csv");
+                if(!outputFile.is_open()){                                                  // Open output file
+                    cerr << "Error: unable to open output file\n";
+                    return;
+                }
+                
+                myPopulation.RunReplicas(nrReplicas, startingPayOff,                    // Run replicas of the population
+                                        startingReputation, totalRounds, 
+                                        rng, error1, error2, cost, 
+                                        benefit, outputFile);
+                outputFile.close();                                                         // Close output file
+            }));
+        }
+        for(auto& t : threads){                                                             // Check all threads                
+            t.join();                                                                       // Wait for all threads to be done
+        }
+        PrintProgress(simulation, nrThreads, nrPermutations, startCurrentTimer, benefit, cost);                        // Print to terminal
+    }
 }

@@ -7,22 +7,14 @@
 using namespace std;
 
 
-/*------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------
-----------------------------         Results (struct)            ---------------------------
---------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------*/
+/*----------------------------         Results (struct)            ---------------------------*/
 struct StrategyPayOff{
     double mutantPayOff;
     double avgResidentPayOff;
 };
 
 
-/*==========================================================================================
-============================================================================================
-==========================          Population (class)          ============================
-============================================================================================
-==========================================================================================*/
+/*==========================          Population (class)          ============================*/
 class PopulationClassRareMutant : public BasePopulationClass{
 public:
     PopulationClassRareMutant(const strategiesSocialNorms& socialNorms,                       // Population class constructor
@@ -44,3 +36,10 @@ public:
                      const double benefit,
                      ofstream &outputFile);
 };
+
+/*=============================       Complete simulation       ==============================*/
+void SimulationRareMutant(const double benefit,
+                          const array<array<int, nrStrategies>, nrPermutations>& allPopulations,
+                          const int nrThreads,
+                          const strategiesSocialNorms& socialNorms,
+                          const strategiesActionRules& actionRules);
