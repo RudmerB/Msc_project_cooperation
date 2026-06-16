@@ -1,6 +1,7 @@
 // Libraries
 #include <fstream>
 #include <thread>
+#include <filesystem>
 
 // Header Files
 #include "Parameters.h"
@@ -8,6 +9,34 @@
 #include "Utilities.h"
 #include "SimulationRareMutant.h"
 using namespace std;
+
+
+void SimulationRareMutantSetUp(){
+    if (!filesystem::exists("InputFileRareMutant.csv")) {
+        CreateInputFileRareMutant();
+    }
+
+    //--- open input file ---
+    ifstream inputFile("InputFileRareMutant.csv");
+    if(!inputFile.is_open()){
+        cerr<<"error:unable to open input file\n";
+        exit(EXIT_FAILURE);
+    }
+
+    checkGlobalParameters("InputFileRareMutant.csv", nrPermutationsMutant);                   // Function that checks whether constexpr at top = file input
+    
+    //--- read strategy permutation ---
+    array<array<int, nrStrategies>, nrPermutationsMutant> allPopulations;     // Create an array of arrays
+    for (int i = 0; i < nrPermutationsMutant; ++i){                           // Loop over the strategy permutations
+        allPopulations[i] = ReadStrategyFrequencies(inputFile);         // Store the permutations in the array
+    }
+    inputFile.close();                                                  // Close the input file
+
+    if (!filesystem::exists("results_mutant")) {
+        system("mkdir results_mutant");
+    }
+}
+
 
 /*==========================================================================================
 ============================================================================================
@@ -121,8 +150,9 @@ void PopulationClassRareMutant::RunReplicas(const int replicasPerPop,
 =============================       Complete simulation       ==============================
 ============================================================================================
 ==========================================================================================*/
-void SimulationRareMutant(const double benefit,
-                          const array<array<int, nrStrategies>, nrPermutations>& allPopulations,
+void SimulationRareMutant(const string simulationType,
+                          const double benefit,
+                          const array<array<int, nrStrategies>, nrPermutationsMutant>& allPopulations,
                           const int nrThreads,
                           const strategiesSocialNorms& socialNorms,
                           const strategiesActionRules& actionRules)
@@ -137,9 +167,9 @@ void SimulationRareMutant(const double benefit,
     auto startCurrentTimer = chrono::high_resolution_clock::now();                  // For terminal output
 
     //--- setup ---
-    string resultsFolder = CreateResultsDirectory(cost, benefit,        // Create results directory and stores the name prefix for result files
-                                                error1, error2,
-                                                totalRounds);
+    string resultsFolder = CreateResultsDirectory(simulationType, cost, benefit,        // Create results directory and stores the name prefix for result files
+                                                  error1, error2,
+                                                  totalRounds);
 
 
     ofstream parameterFile(resultsFolder + "/model_parameters.csv");
@@ -158,11 +188,11 @@ void SimulationRareMutant(const double benefit,
         parameterFile.close();
 
     //--- simulation loop ---
-    for(int simulation = 0; simulation < nrPermutations; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
+    for(int simulation = 0; simulation < nrPermutationsMutant; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
     vector<thread> threads;                                                                 // Create vector
     threads.reserve(nrThreads);                                                             // Reserve space for vector
 
-        for(int t = 0; t < nrThreads && simulation + t < nrPermutations; ++t){              // Gives one simulation to each thread, and prevents out of bounds
+        for(int t = 0; t < nrThreads && simulation + t < nrPermutationsMutant; ++t){              // Gives one simulation to each thread, and prevents out of bounds
             int sim = simulation + t;
 
 
@@ -193,6 +223,6 @@ void SimulationRareMutant(const double benefit,
         for(auto& t : threads){                                                             // Check all threads                
             t.join();                                                                       // Wait for all threads to be done
         }
-        PrintProgress(simulation, nrThreads, nrPermutations, startCurrentTimer, benefit, cost);                        // Print to terminal
+        PrintProgress(simulation, nrThreads, nrPermutationsMutant, startCurrentTimer, benefit, cost);                        // Print to terminal
     }
 }

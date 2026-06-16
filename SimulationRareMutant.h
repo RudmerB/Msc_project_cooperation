@@ -6,11 +6,13 @@
 #include "Strategies.h"
 using namespace std;
 
+/*-------------------         Simulation file & directory setUp            -------------------*/
+void SimulationRareMutantSetUp();
 
 /*----------------------------         Results (struct)            ---------------------------*/
 struct StrategyPayOff{
-    double mutantPayOff;
-    double avgResidentPayOff;
+    double mutantPayOff = 0.0;
+    double avgResidentPayOff = 0.0;
 };
 
 
@@ -38,8 +40,9 @@ public:
 };
 
 /*=============================       Complete simulation       ==============================*/
-void SimulationRareMutant(const double benefit,
-                          const array<array<int, nrStrategies>, nrPermutations>& allPopulations,
+void SimulationRareMutant(const string simulationType,
+                          const double benefit,
+                          const array<array<int, nrStrategies>, nrPermutationsMutant>& allPopulations,
                           const int nrThreads,
                           const strategiesSocialNorms& socialNorms,
                           const strategiesActionRules& actionRules);

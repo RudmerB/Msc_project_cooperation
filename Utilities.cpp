@@ -49,9 +49,10 @@ void shuffle(array<int, nrIndividuals> &array,                      // Shuffle f
 ---------------         Check global parameters with input file             ----------------
 --------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------*/
-void checkGlobalParameters()
+void checkGlobalParameters(const string inputFile,
+                           const int nrPermutations)
 {
-    ifstream csvFile("InputFile.csv");
+    ifstream csvFile(inputFile);
     if(!csvFile.is_open()){
         cerr<<"error:unable to open data file\n";
         exit(EXIT_FAILURE);
@@ -130,7 +131,8 @@ array<int, nrStrategies> ReadStrategyFrequencies(ifstream& csvFile)
 -----------------------         Create results directory             -----------------------
 --------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------*/
-string CreateResultsDirectory(const double cost, 
+string CreateResultsDirectory(const string simulationType,
+                              const double cost, 
                               const double benefit,
                               const double error1,
                               const double error2,
@@ -146,7 +148,7 @@ string CreateResultsDirectory(const double cost,
     oss_e1 << defaultfloat << (double)error1;
     oss_e2 << defaultfloat << (double)error2;
 
-    string resultsFolder = "results_mutant\\results_ind" + to_string(nrIndividuals) +
+    string resultsFolder = "results_" + simulationType + "\\results_ind" + to_string(nrIndividuals) +
                         "_rounds" + to_string(totalRounds) +
                         "_c" + oss_cost.str() +
                         "_b" + oss_benefit.str() +

@@ -9,6 +9,7 @@
 #include "Parameters.h"
 using namespace std;
 
+
 /*------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------
 --------------------------         Individual (struct)            --------------------------
@@ -19,10 +20,11 @@ struct BaseIndividual{
     array<char, 4> actionRule;                                      // Each individual has action rules (what to do when he himself is actor)
     array<char, nrIndividuals> privateReputations;                  // Each individual can store the reputation of each other individual 
     double PayOff;                                                  // Each individual has a pay-off
-    bool isResident = false;   
+    bool isResident = false;                                        // Used in SimulationRareMutant only
+    char strategyLabel = ' ';                                       // Used in SimulationStrategyUpdating only
 
-    BaseIndividual() = default;                                         // Basic constructor 
-    BaseIndividual(const char& startingReputation,                      // Constructor
+    BaseIndividual() = default;                                     // Basic constructor 
+    BaseIndividual(const char& startingReputation,                  // Constructor
                    const double& startingPayOff);                                                 
 };
 
