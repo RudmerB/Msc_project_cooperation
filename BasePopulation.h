@@ -19,13 +19,13 @@ struct BaseIndividual{
     array<char, 8> socialNorm;                                      // Each individual has a social norm (how he updates reputations when he is observer)
     array<char, 4> actionRule;                                      // Each individual has action rules (what to do when he himself is actor)
     array<char, nrIndividuals> privateReputations;                  // Each individual can store the reputation of each other individual 
-    double PayOff;                                                  // Each individual has a pay-off
+    double PayOff = 0.0;                                            // Each individual has a pay-off
     bool isResident = false;                                        // Used in SimulationRareMutant only
     char strategyLabel = ' ';                                       // Used in SimulationStrategyUpdating only
 
     BaseIndividual() = default;                                     // Basic constructor 
-    BaseIndividual(const char& startingReputation,                  // Constructor
-                   const double& startingPayOff);                                                 
+    BaseIndividual(const char startingReputation,                   // Constructor
+                   const double startingPayOff);                                                 
 };
 
 

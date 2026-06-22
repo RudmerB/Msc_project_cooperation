@@ -11,8 +11,8 @@ using namespace std;
 -------------------------         Individual constructor            ------------------------
 --------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------*/
-BaseIndividual::BaseIndividual(const char& startingReputation,
-                               const double& startingPayOff)
+BaseIndividual::BaseIndividual(const char startingReputation,
+                               const double startingPayOff)
 {
     privateReputations.fill(startingReputation);                    // Initiliaze everyone's reputation
     PayOff = startingPayOff;                                        // Initialize pay off   

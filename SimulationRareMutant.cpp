@@ -11,33 +11,6 @@
 using namespace std;
 
 
-void SimulationRareMutantSetUp(){
-    if (!filesystem::exists("InputFileRareMutant.csv")) {
-        CreateInputFileRareMutant();
-    }
-
-    //--- open input file ---
-    ifstream inputFile("InputFileRareMutant.csv");
-    if(!inputFile.is_open()){
-        cerr<<"error:unable to open input file\n";
-        exit(EXIT_FAILURE);
-    }
-
-    checkGlobalParameters("InputFileRareMutant.csv", nrPermutationsMutant);                   // Function that checks whether constexpr at top = file input
-    
-    //--- read strategy permutation ---
-    array<array<int, nrStrategies>, nrPermutationsMutant> allPopulations;     // Create an array of arrays
-    for (int i = 0; i < nrPermutationsMutant; ++i){                           // Loop over the strategy permutations
-        allPopulations[i] = ReadStrategyFrequencies(inputFile);         // Store the permutations in the array
-    }
-    inputFile.close();                                                  // Close the input file
-
-    if (!filesystem::exists("results_mutant")) {
-        system("mkdir results_mutant");
-    }
-}
-
-
 /*==========================================================================================
 ============================================================================================
 =====================         Population - Class Constructor         =======================

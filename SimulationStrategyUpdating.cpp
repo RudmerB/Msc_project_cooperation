@@ -41,22 +41,28 @@ PopulationClassStrategyUpdating::PopulationClassStrategyUpdating(const strategie
                                   "than the real population size.\n");
             }
             
-            population[populationIndex] = BaseIndividual(startingReputation,                // Construct an individual at this location with reputation and payoff given in main()
+            population[populationIndex] = BaseIndividual(startingReputation,            // Construct an individual at this location with reputation and payoff given in main()
                                                      startingPayOff);
             population[populationIndex].socialNorm = socialNorms.socialNorm[i];         // Assign the respective social norm to the individual of that strategy
             population[populationIndex].actionRule = actionRules.actionRule[i];         // Do the same for the action rule
 
-            if (i == StrategiesStats.strategyAIndex) {
-                population[populationIndex].strategyLabel = 'A';
+            if (i == StrategiesStats.strategyAIndex) {                                  // If the iterator matches the index of strategy A...
+                population[populationIndex].strategyLabel = 'A';                        // ...Give the corresponding individual the label 'A' and...
+                ++StrategiesStats.nrIndStrategyA;                                       // ...add one to the counter of strategy A individual
             }
-            else if (i == StrategiesStats.strategyBIndex) {
-                population[populationIndex].strategyLabel = 'B';
+            else if (i == StrategiesStats.strategyBIndex) {                             // If the iterator matches the index of strategy B...
+                population[populationIndex].strategyLabel = 'B';                        // ...Give the corresponding individual the label 'B' and...
+                ++StrategiesStats.nrIndStrategyB;                                       // ...add one to the counter of strategy B individual
             }
-            ++populationIndex;                                                          // Increase the counter to initiate unassigned individuals
+            ++populationIndex;                                                          // Increase the counter for the total population number
         }
     }
 
     if (populationIndex != nrIndividuals) {                                             // Safety check: 'Did we assign the correct number of individuals?'
+        throw logic_error("The number of assigned individuals does not "
+                          "equal the population size.\n");
+    }
+    if (StrategiesStats.nrIndStrategyA + StrategiesStats.nrIndStrategyA != nrIndividuals) { // Safety check: Is the number of A and B equal to the total?
         throw logic_error("The number of assigned individuals does not "
                           "equal the population size.\n");
     }
@@ -65,34 +71,29 @@ PopulationClassStrategyUpdating::PopulationClassStrategyUpdating(const strategie
 
 /*==========================================================================================
 ============================================================================================
-=====================       Mutant and  Average Resident Payoff       =======================
+=====================        Payoff       =======================
 ============================================================================================
 ==========================================================================================*/
-Strategies PopulationClassStrategyUpdating::DetermineStrategyPayOff()
+void PopulationClassStrategyUpdating::DetermineStrategyPayOff()
 {
-    double dStrategyASum = 0.0;                                  // Initiate sum of pay offs                                     // Initiate resident counter
-    double dStrategyBSum = 0.0;
+    double dStrategyASum = 0.0;                                 // Initiate pay off sum for A 
+    double dStrategyBSum = 0.0;                                 // Initiate pay off sum for B
 
     for (int i = 0; i < nrIndividuals; ++i) {                   // Loop over all individuals
-        if (population[i].strategyLabel == 'A') {                         // Check if the individual is a resident
-            dStrategyASum += population[i].PayOff;               // Add their payoff to the sum
-            ++ StrategiesStats.nrIndStrategyA;                                    // Increase resident counter with 1
+        if (population[i].strategyLabel == 'A') {               // Check if individual has label 'A'
+            dStrategyASum += population[i].PayOff;              // Add their payoff to sum of A
         }
-        else if (population[i].strategyLabel == 'B') {                                               // If an indvidual is not a resident
-            dStrategyBSum += population[i].PayOff;
-            ++ StrategiesStats.nrIndStrategyB;
+        else if (population[i].strategyLabel == 'B') {          // Check if individual has label 'B'
+            dStrategyBSum += population[i].PayOff;              // Add their payoff to sum of B
         }
         else throw logic_error("DetermineStrategyPayOff() sees individuals without labels");
     }
-    
-    if (StrategiesStats.nrIndStrategyA == 0 || StrategiesStats.nrIndStrategyB == 0) {                 // Safety check: 'Did we assign the correct number of individuals?'
-        throw logic_error("There are no individuals of A and/or B found.\n");
-    }
 
-    StrategiesStats.avgStrategyAPayOff = dStrategyASum/StrategiesStats.nrIndStrategyA;      // Store the average resident payoff in the struct
+    StrategiesStats.avgStrategyAPayOff = dStrategyASum/StrategiesStats.nrIndStrategyA;      // Calculate average payoff for both strategies 
     StrategiesStats.avgStrategyBPayOff = dStrategyBSum/StrategiesStats.nrIndStrategyB;
-
-    return StrategiesStats;                                             // Return the struct
+    //cout << "PayOff " << strategyNames[StrategiesStats.strategyAIndex] << "/" 
+    //     << strategyNames[StrategiesStats.strategyBIndex] << " = "
+    //     << StrategiesStats.avgStrategyAPayOff << "/" << StrategiesStats.avgStrategyBPayOff; //TODO Remove after testing
 }
 
 
@@ -103,18 +104,30 @@ Strategies PopulationClassStrategyUpdating::DetermineStrategyPayOff()
 ==========================================================================================*/
 void PopulationClassStrategyUpdating::RunReplicatorDynamics()
 {
-    double pA = StrategiesStats.nrIndStrategyA / nrIndividuals;
-    double pB = StrategiesStats.nrIndStrategyB / nrIndividuals;
+    double pA = StrategiesStats.nrIndStrategyA / static_cast<double>(nrIndividuals);        // Calculate the fraction of 'A' and 'B' individuals, static_cast
+    double pB = StrategiesStats.nrIndStrategyB / static_cast<double>(nrIndividuals);        // allows to obtain a double from dividing two intergers
 
-    double meanPayOff = (pA * StrategiesStats.avgStrategyAPayOff) +
-                        (pB * StrategiesStats.avgStrategyBPayOff);
+    double meanFitnessA = baseFitness + StrategiesStats.avgStrategyAPayOff;
+    double meanFitnessB = baseFitness + StrategiesStats.avgStrategyBPayOff;
 
-    double pA_new = pA * (StrategiesStats.avgStrategyAPayOff / meanPayOff);
+    double meanFitnessTotal = (pA * meanFitnessA) +                                              // Calculate the mean payoff (fraction A * mean payoff A + fraction B + mean payoff B))
+                              (pB * meanFitnessB);
 
-    StrategiesStats.nrIndStrategyA = round(pA_new * nrIndividuals);
-    StrategiesStats.nrIndStrategyB = nrIndividuals - StrategiesStats.nrIndStrategyA;
+    double pA_new = pA * (meanFitnessA / meanFitnessTotal);                 // Fraction of A in new generation is fraction A * (mean payoff A / mean payoff total)
+    if (pA_new < 0.0 || pA_new > 1.0) {
+        cerr << "\npA_new took on an impossible value in RunReplicatorDynamics()\n";
+        exit(EXIT_FAILURE);
+    }
+    StrategiesStats.nrIndStrategyA = round(pA_new * nrIndividuals);                         // Number of A in new generation is new fraction A * population size
+    StrategiesStats.nrIndStrategyB = nrIndividuals - StrategiesStats.nrIndStrategyA;        // Number of B in new generation is population size - new number of A
+    //cout << "    \t\tFitness " << strategyNames[StrategiesStats.strategyAIndex] << "/" 
+    //     << strategyNames[StrategiesStats.strategyBIndex] << " = "
+    //     << meanFitnessA << "/" << meanFitnessB; //TODO Remove after testing
+    //cout << "    \t\tnrInd post update " << strategyNames[StrategiesStats.strategyAIndex] << "/" 
+    //     << strategyNames[StrategiesStats.strategyBIndex] << " = " 
+    //     << StrategiesStats.nrIndStrategyA << "/" << StrategiesStats.nrIndStrategyB << endl; //TODO remove after testing
 }
-
+//BUG Payoff can become negative, which in turn may lead to negative nr of individuals
 
 /*==========================================================================================
 ============================================================================================
@@ -126,30 +139,45 @@ void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSoc
                                                              const double startingPayOff,
                                                              const char startingReputation)
 {
-    int StrategyACounter = 0;
-    int StrategyBCounter = 0;
+    int targetNrA = StrategiesStats.nrIndStrategyA;         // Store traget nr of individuals in new generation
+    int targetNrB = StrategiesStats.nrIndStrategyB;
+    int currentNrA = 0;                                     // Store current nr of individuals that have been assigned either A or B
+    int currentNrB = 0;
 
-    for (int i = 0; i < nrIndividuals; ++i) {
-        if (population[i].strategyLabel == 'A' && StrategyACounter < StrategiesStats.nrIndStrategyA) {
-            ++StrategyACounter;
+    for (int i = 0; i < nrIndividuals; ++i) {               // Loop over individuals
+        if (population[i].strategyLabel == 'A') {           // If the individual is currently 'A'...
+            if (currentNrA < targetNrA) {                   // ...And if the counted nr of 'A' is smaller than the target...
+                ++currentNrA;                               // ...Add this individual (still 'A') to the current counter A
+            }
+            else {                                          // If the counted nr of individuals is not smaller than the target...
+                population[i].socialNorm = socialNorms.socialNorm[StrategiesStats.strategyBIndex];      // Switch social norm to 'B'
+                population[i].actionRule = actionRules.actionRule[StrategiesStats.strategyBIndex];      // Switch action rule to 'B'
+                population[i].strategyLabel = 'B';          // Swithc strategy label to 'B'
+                ++currentNrB;                               // Add the indvidual (now 'B') to the current counter B
+            }
         }
-        else if (population[i].strategyLabel == 'A' && StrategyACounter > StrategiesStats.nrIndStrategyA) {
-            population[i].socialNorm = socialNorms.socialNorm[StrategiesStats.strategyBIndex];
-            population[i].actionRule = actionRules.actionRule[StrategiesStats.strategyBIndex];
-            population[i].strategyLabel = 'B';
-            ++ StrategyBCounter;
+        else if (population[i].strategyLabel == 'B') {      // Else if the individual is currently 'B'...
+            if (currentNrB < targetNrB) {                   // ...And if the counted nr of 'B' is smaller than the target...
+                ++currentNrB;                               // ...Add this individual (still 'B') to the current counter B
+            }
+            else {                                          // If the counted nr of individuals is not smaller than the target
+                population[i].socialNorm = socialNorms.socialNorm[StrategiesStats.strategyAIndex];      // Switch social norm to 'A'
+                population[i].actionRule = actionRules.actionRule[StrategiesStats.strategyAIndex];      // Switch action rule to 'A'
+                population[i].strategyLabel = 'A';          // Switch the strategy label to 'A'
+                ++currentNrA;                               // Add the individual (now 'A') to the current counter A
+            }
         }
-        else if (population[i].strategyLabel == 'B') {
-            ++ StrategyBCounter;
-        }
-        else throw logic_error("ConstructNewGeneration() sees individuals without labels");
     }
 
-    if(StrategyACounter != StrategiesStats.nrIndStrategyA || StrategyBCounter != StrategiesStats.nrIndStrategyB) {
+    if(currentNrA != StrategiesStats.nrIndStrategyA || currentNrB != StrategiesStats.nrIndStrategyB) {      // Safety check: did we switch the correct nr of individuals
         throw logic_error("ConstrcutNewGeneration() failed to correctly reconstruct the population frequencies.\n");
     }
 
-    ResetIndividuals(startingPayOff, startingReputation);
+    if(StrategiesStats.nrIndStrategyA == 0 || StrategiesStats.nrIndStrategyB == 0) {
+        cout << "One of the strategies has reached fixation, the simulation has stopped\n";
+        exit(EXIT_SUCCESS);
+    }
+    ResetIndividuals(startingPayOff, startingReputation);   // Reset the payoff and private reputations of all individuals
 }
 
 
@@ -173,18 +201,21 @@ void PopulationClassStrategyUpdating::RunReplicas(const int replicasPerPop,
 {   
     outputFile << "NrIndStrategyA, NrIndStrategyB" << endl;                                                            
     for(int replica = 0; replica < replicasPerPop; ++replica){
+
         ResetIndividuals(startingPayOff, startingReputation);
         for(int round = 0; round < totalRounds; ++round){
 
             PlayInteractionRound(rng, error1, error2, cost, benefit);                      // Play interactions for certain number of rounds
-            
-            if(round % 50) {
-                DetermineStrategyPayOff();
+            if (round == 0){
+                outputFile << StrategiesStats.nrIndStrategyA << "," << StrategiesStats.nrIndStrategyB << "\n";
+            }
+            if(round > 0 && round % 100 == 0){ //TODO determine if 50 is good enough
+                DetermineStrategyPayOff(); 
                 RunReplicatorDynamics();
                 ConstructNewGeneration(socialNorms, actionRules, startingPayOff, startingReputation);
+                outputFile << StrategiesStats.nrIndStrategyA << "," << StrategiesStats.nrIndStrategyB << "\n";
             }
-        }
-        outputFile << StrategiesStats.nrIndStrategyA << "," << StrategiesStats.nrIndStrategyB << "\n";    // Write payoffs to output file
+        }  
     }    
 }
 
@@ -196,10 +227,11 @@ void PopulationClassStrategyUpdating::RunReplicas(const int replicasPerPop,
 ==========================================================================================*/
 void SimulationStrategyUpdating(const string simulationType,
                                 const double benefit,
-                               const array<array<int, nrStrategies>, nrPermutationsUpdating>& allPopulations,
-                               const int nrThreads,
-                               const strategiesSocialNorms& socialNorms,
-                               const strategiesActionRules& actionRules)
+                                const int totalRounds,
+                                const array<array<int, nrStrategies>, nrPermutationsUpdating>& allPopulations,
+                                const int nrThreads,
+                                const strategiesSocialNorms& socialNorms,
+                                const strategiesActionRules& actionRules)
 {
     cout << "\nRunning b/c = " << benefit/cost << "\n";
         
@@ -212,8 +244,8 @@ void SimulationStrategyUpdating(const string simulationType,
 
     //--- setup ---
     string resultsFolder = CreateResultsDirectory(simulationType, cost, benefit,        // Create results directory and stores the name prefix for result files
-                                                error1, error2,
-                                                totalRounds);
+                                                  error1, error2,
+                                                  totalRounds);
 
 
     ofstream parameterFile(resultsFolder + "/model_parameters.csv");
@@ -239,7 +271,10 @@ void SimulationStrategyUpdating(const string simulationType,
         for(int t = 0; t < nrThreads && simulation + t < nrPermutationsUpdating; ++t){              // Gives one simulation to each thread, and prevents out of bounds
             int sim = simulation + t;
 
-
+            if (sim != 42) { //FIXME once test completed remove   65 = allc/alld
+                continue;
+            }
+            cout << "running\n";
             threads.push_back(thread([=](){                                                 // Create lambda function (function with no name)
                 mt19937_64 rng(baseSeed + sim);                                             // Create a rng with time and simulation nr
                 array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];    // Store strategy distribution of population 

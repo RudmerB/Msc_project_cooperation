@@ -29,7 +29,7 @@ public:
 
     Strategies StrategiesStats;
 
-    Strategies DetermineStrategyPayOff();
+    void DetermineStrategyPayOff();
 
     void RunReplicatorDynamics();
 
@@ -50,12 +50,16 @@ public:
                      const strategiesSocialNorms& socialNorms,
                      const strategiesActionRules& actionRules,
                      ofstream &outputFile);
+private:
+    //int nrIndStrategyAPostUpdate = 0;
+    //int nrIndStrategyBPostUpdate = 0;
 };
 
 
 /*=============================       Complete simulation       ==============================*/
 void SimulationStrategyUpdating(const string simulationType,
                                 const double benefit,
+                                const int totalRounds,
                                const array<array<int, nrStrategies>, nrPermutationsUpdating>& allPopulations,
                                const int nrThreads,
                                const strategiesSocialNorms& socialNorms,

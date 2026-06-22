@@ -10,10 +10,11 @@ string(REPLACE " " "_" ProjectName ${ProjectDir})
 project(${ProjectName})
 
 # Add source to this project's executable.
-add_executable (${ProjectName} "Main.cpp" 
+add_executable (${ProjectName} #"Main.cpp" 
+                               "MainTest.cpp"
                                "BasePopulation.cpp"
                                "SimulationRareMutant.cpp"
-                               #"SimulationStrategyUpdating.cpp"
+                               "SimulationStrategyUpdating.cpp"
                                "Utilities.cpp"
                                "CreateInputFiles.cpp")
 

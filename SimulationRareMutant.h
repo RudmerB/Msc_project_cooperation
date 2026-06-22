@@ -6,9 +6,6 @@
 #include "Strategies.h"
 using namespace std;
 
-/*-------------------         Simulation file & directory setUp            -------------------*/
-void SimulationRareMutantSetUp();
-
 /*----------------------------         Results (struct)            ---------------------------*/
 struct StrategyPayOff{
     double mutantPayOff = 0.0;

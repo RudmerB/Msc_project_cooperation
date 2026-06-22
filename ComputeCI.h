@@ -5,7 +5,7 @@
 #include <cmath>
 
 using namespace std;
-
+//TODO make the computeCI.cpp file, include the function in utilities and add the function to main
 struct ConfidenceInterval{
     double mean;
     double lower;
