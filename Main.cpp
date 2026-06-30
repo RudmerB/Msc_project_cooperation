@@ -20,22 +20,13 @@ using namespace std;
 ------------------------------------------------------------------------------------------*/
 int main()
 {
-    //char answer = ' ';
-    //cout << "Don't forget to put the simulation in release/debug version (Ctrl + Shift + P), do you want to continue(y/n)?" << endl;
-    //cin >> answer;
-    //if (answer != 'y') {
-    //    cout << "Understood, till next time.\n";
-    //    exit(EXIT_FAILURE);
-    //}
-
-    //--- parameters ---
-    //const double  error1              = 0.01;
-    //const double  error2              = 0.1;
-    //const double  cost                = 1.0;
-    //const double  benefit             = 1.05;
-    //const char    startingReputation  = 'G';
-    //const double  startingPayOff      = 0.0;
-    //const int     totalRounds         = 10;
+    char answer = ' ';
+    cout << "Don't forget to put the simulation in release/debug version (Ctrl + Shift + P), do you want to continue(y/n)?" << endl;
+    cin >> answer;
+    if (answer != 'y') {
+        cout << "Understood, till next time.\n";
+        exit(EXIT_FAILURE);
+    }
 
     int nrThreads = thread::hardware_concurrency();                     // Read the number of threads available on current device
     if(nrThreads == 0){                                                 // If the above fails...
@@ -51,7 +42,7 @@ int main()
     string simulationType = " ";
     string permutationsFile = " ";
     int nrPermutations = 0;
-  /*  
+
     int userInput = 0;
     cout << "What program do you want to run?\n"
          << "   - Rare mutant strategy simulation (1)\n"
@@ -70,14 +61,14 @@ int main()
     }
 
     else if (userInput == 2) {
-    */    
+  
         simulationType = "updating";
         if (!filesystem::exists("InputFileStrategyUpdating.csv")) {
             CreateInputFileStrategyUpdating();
         }
         permutationsFile = "InputFileStrategyUpdating.csv";
         nrPermutations = nrPermutationsUpdating;
-    //}
+    }
 
     //--- open input file ---
     ifstream inputFile(permutationsFile);
@@ -88,7 +79,7 @@ int main()
 
     checkGlobalParameters(permutationsFile, nrPermutations);                   // Function that checks whether constexpr at top = file input
 
-/*
+
     if (userInput == 1) { 
         //--- read strategy permutation ---
         array<array<int, nrStrategies>, nrPermutationsMutant> allPopulations;     // Create an array of arrays
@@ -107,34 +98,20 @@ int main()
         }
     }
 
-    else if (userInput == 2) {*/
+    else if (userInput == 2) {
         //--- read strategy permutation ---
         array<array<int, nrStrategies>, nrPermutationsUpdating> allPopulations;     // Create an array of arrays
         for (int i = 0; i < nrPermutationsUpdating; ++i){                           // Loop over the strategy permutations
             allPopulations[i] = ReadStrategyFrequencies(inputFile);         // Store the permutations in the array
         }
         inputFile.close(); 
+
+        if (!filesystem::exists("results_updating")) {
+        system("mkdir results_updating");
+        }
         
-        //TODO Might also make mutation a parameter instead of a function (no further output )
-        /*userInput = 0;
-        cout << "You chose to run the strategy updating simulation, do you want to include mutation?\n"
-             << "   - Exclude mutation of strategies (1)\n"
-             << "   - Include mutation of strategies (2)\n"
-             << "Type in 1 or 2\n";
-        cin >> userInput; */
-
-        //if (userInput == 1){
-            if (!filesystem::exists("results_updating")) {
-            system("mkdir results_updating");
-            }
-
-            //for (double benefit = 2.0; benefit <= 10.0; benefit += 1.0) {
-                double benefit = 2.0;
-                SimulationStrategyUpdating(simulationType, benefit, allPopulations, nrThreads, socialNorms, actionRules);
-            //}
-        //}
-
-        
-    //}
+        const double benefit = 2.0;
+        SimulationStrategyUpdating(simulationType, benefit, totalRoundsUpdating, allPopulations, nrThreads, socialNorms, actionRules);
+    }
     return 0;
 }

@@ -36,30 +36,25 @@ public:
     void ConstructNewGeneration(const strategiesSocialNorms& socialNorms,
                                 const strategiesActionRules& actionRules,
                                 const double startingPayOff,
-                                const char startingReputation);
+                                const char startingReputation,
+                                const int minNrInd);
 
-    void RunReplicas(const int replicasPerPop,
-                     const double startingPayOff,
-                     const char startingReputation,
-                     const int totalRounds,
+    void RunReplicas(
                      mt19937_64 &rng,
-                     const double error1,
-                     const double error2,
-                     const double cost,
+                     const int nrThreads,
+                     const int baseSeed,
+                     array <int, nrStrategies> nrIndividualPerStrategy,
                      const double benefit,
                      const strategiesSocialNorms& socialNorms,
                      const strategiesActionRules& actionRules,
                      ofstream &outputFile);
-private:
-    //int nrIndStrategyAPostUpdate = 0;
-    //int nrIndStrategyBPostUpdate = 0;
 };
 
 
 /*=============================       Complete simulation       ==============================*/
 void SimulationStrategyUpdating(const string simulationType,
                                 const double benefit,
-                                const int totalRounds,
+                                const int totalRoundsUpdating,
                                const array<array<int, nrStrategies>, nrPermutationsUpdating>& allPopulations,
                                const int nrThreads,
                                const strategiesSocialNorms& socialNorms,

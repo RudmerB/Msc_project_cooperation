@@ -95,10 +95,10 @@ StrategyPayOff PopulationClassRareMutant::DetermineStrategyPayOff()
 =============================       Simulation Replicas       ==============================
 ============================================================================================
 ==========================================================================================*/
-void PopulationClassRareMutant::RunReplicas(const int replicasPerPop,
+void PopulationClassRareMutant::RunReplicas(const int nrReplicasMutant,
                                   const double startingPayOff,
                                   const char startingReputation,
-                                  const int totalRounds,
+                                  const int totalRoundsMutant,
                                   mt19937_64 &rng,
                                   const double error1,
                                   const double error2,
@@ -107,9 +107,9 @@ void PopulationClassRareMutant::RunReplicas(const int replicasPerPop,
                                   ofstream &outputFile)
 {
     StrategyPayOff Results;                                                                // Create a struct for results
-    for(int replica = 0; replica < replicasPerPop; ++replica){
+    for(int replica = 0; replica < nrReplicasMutant; ++replica){
         ResetIndividuals(startingPayOff, startingReputation);
-        for(int round = 0; round < totalRounds; ++round){
+        for(int round = 0; round < totalRoundsMutant; ++round){
             PlayInteractionRound(rng, error1, error2, cost, benefit);                      // Play interactions for certain number of rounds
         }
         Results = DetermineStrategyPayOff();                                               // Store payoffs
@@ -142,7 +142,7 @@ void SimulationRareMutant(const string simulationType,
     //--- setup ---
     string resultsFolder = CreateResultsDirectory(simulationType, cost, benefit,        // Create results directory and stores the name prefix for result files
                                                   error1, error2,
-                                                  totalRounds);
+                                                  totalRoundsMutant);
 
 
     ofstream parameterFile(resultsFolder + "/model_parameters.csv");
@@ -156,8 +156,8 @@ void SimulationRareMutant(const string simulationType,
                         << "\nerror1 = " << error1
                         << "\nerror2 = " << error2
                         << "\nnrIndividuals = " << nrIndividuals
-                        << "\nnrRounds = " << totalRounds
-                        << "\nnrReplicates = " << nrReplicas;
+                        << "\nnrRounds = " << totalRoundsMutant
+                        << "\nnrReplicates = " << nrReplicasMutant;
         parameterFile.close();
 
     //--- simulation loop ---
@@ -186,8 +186,8 @@ void SimulationRareMutant(const string simulationType,
                     return;
                 }
                 
-                myPopulation.RunReplicas(nrReplicas, startingPayOff,                    // Run replicas of the population
-                                        startingReputation, totalRounds, 
+                myPopulation.RunReplicas(nrReplicasMutant, startingPayOff,                    // Run replicas of the population
+                                        startingReputation, totalRoundsMutant, 
                                         rng, error1, error2, cost, 
                                         benefit, outputFile);
                 outputFile.close();                                                         // Close output file

@@ -24,10 +24,10 @@ public:
     
     StrategyPayOff DetermineStrategyPayOff();                                       // Give both the pay offs of the mutant and the average resident pay off
 
-    void RunReplicas(const int replicasPerPop,
+    void RunReplicas(const int nrReplicatesMutant,
                      const double startingPayOff,
                      const char startingReputations,
-                     const int totalRounds,
+                     const int totalRoundsMutant,
                      mt19937_64 &rng,
                      const double error1,
                      const double error2,

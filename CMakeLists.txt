@@ -11,7 +11,7 @@ project(${ProjectName})
 
 # Add source to this project's executable.
 add_executable (${ProjectName} #"Main.cpp" 
-                               "MainTest.cpp"
+                               "Main.cpp"
                                "BasePopulation.cpp"
                                "SimulationRareMutant.cpp"
                                "SimulationStrategyUpdating.cpp"

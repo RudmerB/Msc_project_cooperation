@@ -24,6 +24,12 @@ int main()
     strategiesSocialNorms socialNorms;      // Create socialnorm struct
     strategiesActionRules actionRules;      // Create actionrule struct
 
+    int nrThreads = thread::hardware_concurrency();                     // Read the number of threads available on current device
+    if(nrThreads == 0){                                                 // If the above fails...
+        nrThreads = 4;                                                  // ...set the number of threads to 4
+    }
+    cout << "Running with " << nrThreads << " number of threads\n";     // Write number of threads to terminal
+
     string simulationType = " ";
     string permutationsFile = " ";
     int nrPermutations = 0;
@@ -44,7 +50,7 @@ int main()
     }
 
     checkGlobalParameters(permutationsFile, nrPermutations);                   // Function that checks whether constexpr at top = file input
-
+    
 
     //--- read strategy permutation ---
     array<array<int, nrStrategies>, nrPermutationsUpdating> allPopulations;     // Create an array of arrays
@@ -57,9 +63,7 @@ int main()
     system("mkdir results_updating");
     }
 
-    const int totalRoundsUpdating = 100000;
     const double benefit = 2.0;
-    const int nrThreads = 1;
     SimulationStrategyUpdating(simulationType, benefit, totalRoundsUpdating, allPopulations, nrThreads, socialNorms, actionRules);
     return 0;
 }

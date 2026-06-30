@@ -176,7 +176,7 @@ void PrintProgress(const int simulation,
                    const double benefit,
                    const double cost)
 {
-    int completed = simulation + nrThreads;                                 // Number of completed simulations
+    int completed = simulation + nrThreads;                             // Number of completed simulations                        
     int percentage = (completed * 100) / nrPermutations;                    // Calculate completed percentage 
     
     int prevPercentage = ((simulation) * 100) / nrPermutations;             // Calculate completed percentage of previous batch

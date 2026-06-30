@@ -1,6 +1,7 @@
 // Libraries
 #include <fstream>
 #include <thread>
+#include <iomanip>
 
 // Header Files
 #include "Parameters.h"
@@ -127,7 +128,6 @@ void PopulationClassStrategyUpdating::RunReplicatorDynamics()
     //     << strategyNames[StrategiesStats.strategyBIndex] << " = " 
     //     << StrategiesStats.nrIndStrategyA << "/" << StrategiesStats.nrIndStrategyB << endl; //TODO remove after testing
 }
-//BUG Payoff can become negative, which in turn may lead to negative nr of individuals
 
 /*==========================================================================================
 ============================================================================================
@@ -137,7 +137,8 @@ void PopulationClassStrategyUpdating::RunReplicatorDynamics()
 void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSocialNorms& socialNorms,
                                                              const strategiesActionRules& actionRules,
                                                              const double startingPayOff,
-                                                             const char startingReputation)
+                                                             const char startingReputation,
+                                                             const int minNrInd)
 {
     int targetNrA = StrategiesStats.nrIndStrategyA;         // Store traget nr of individuals in new generation
     int targetNrB = StrategiesStats.nrIndStrategyB;
@@ -173,7 +174,7 @@ void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSoc
         throw logic_error("ConstrcutNewGeneration() failed to correctly reconstruct the population frequencies.\n");
     }
 
-    if(StrategiesStats.nrIndStrategyA == 0 || StrategiesStats.nrIndStrategyB == 0) {
+    if(StrategiesStats.nrIndStrategyA < minNrInd || StrategiesStats.nrIndStrategyB == minNrInd) {
         cout << "One of the strategies has reached fixation, the simulation has stopped\n";
         exit(EXIT_SUCCESS);
     }
@@ -186,39 +187,98 @@ void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSoc
 =============================       Simulation Replicas       ==============================
 ============================================================================================
 ==========================================================================================*/
-void PopulationClassStrategyUpdating::RunReplicas(const int replicasPerPop,
-                                  const double startingPayOff,
-                                  const char startingReputation,
-                                  const int totalRounds,
+void PopulationClassStrategyUpdating::RunReplicas(
                                   mt19937_64 &rng,
-                                  const double error1,
-                                  const double error2,
-                                  const double cost,
+                                  const int nrThreads,
+                                  const int baseSeed, 
+                                  array <int, nrStrategies> nrIndividualsPerStrategy,
                                   const double benefit,
                                   const strategiesSocialNorms& socialNorms,
                                   const strategiesActionRules& actionRules,
                                   ofstream &outputFile)
 {   
-    outputFile << "NrIndStrategyA, NrIndStrategyB" << endl;                                                            
-    for(int replica = 0; replica < replicasPerPop; ++replica){
+    //--- Create results matrix ---
+    int nrUpdateEvents = totalRoundsUpdating/nrRoundsToUpdateEvent;                         // Calculate the nr of update events 
+    vector<vector<int>> results(nrReplicasUpdating, vector<int>(nrUpdateEvents + 1));       // Create a matrix for results
+    // ^Define Matrix   ^Name   ^Nr rows            ^Nr values per replicate     ^Initial frequencies
 
-        ResetIndividuals(startingPayOff, startingReputation);
-        for(int round = 0; round < totalRounds; ++round){
+    //--- Calculate min nrInd ---
+    const int minNrInd = nrIndividuals / 100 * 1;                                           // Determines when to end a simulation
 
-            PlayInteractionRound(rng, error1, error2, cost, benefit);                      // Play interactions for certain number of rounds
-            if (round == 0){
-                outputFile << StrategiesStats.nrIndStrategyA << "," << StrategiesStats.nrIndStrategyB << "\n";
-            }
-            if(round > 0 && round % 100 == 0){ //TODO determine if 50 is good enough
-                DetermineStrategyPayOff(); 
-                RunReplicatorDynamics();
-                ConstructNewGeneration(socialNorms, actionRules, startingPayOff, startingReputation);
-                outputFile << StrategiesStats.nrIndStrategyA << "," << StrategiesStats.nrIndStrategyB << "\n";
-            }
-        }  
+    int nextThreshold = 25; //HACK 
+
+    //--- Run replicats ---
+    for(int replica = 0; replica < nrReplicasUpdating; replica += nrThreads){               // Replica for-loop, jumps with nrThreads increments
+        vector<thread> threads;                                                             // Store thread objects (all functions the thread needs)
+        threads.reserve(nrThreads);                                                         // Reserve space for the vector based on nr of threads
+
+        //--- Run simultaneous threads ---
+        for(int t = 0; t < nrThreads && replica + t < nrReplicasUpdating; ++t) {            // Loop over threads in current batch
+        //             ^                ^
+        //             |                don't exceed total replicates (last batch may have fewer replicates than nrThreads)
+        //             don't exceed usable threads
+
+            int rep = replica + t;                                                          // Determine true replica index (replica=8 & t=2, means thread handles replica 10)
+            threads.emplace_back([=, &results](){                                           // Construct thread obejct in vector
+            //                    ^  ^
+            //                    |  pass results by Reference (different threads need to right to same matrix)
+            //                    pass local variables given by RunReplicas() by value
+
+                mt19937_64 localRng(baseSeed + rep);                                        // Create local random number generators
+
+                PopulationClassStrategyUpdating localPopulation(socialNorms,                // Create a population for each thread/replicate
+                                                                actionRules,
+                                                                nrIndividualsPerStrategy,
+                                                                startingReputation,
+                                                                startingPayOff);
+                int eventIndex = 0;                                                         // Initiate updating-event counter
+                results[rep][eventIndex++] =                                                // Write initial frequency to matrix 
+                    localPopulation.StrategiesStats.nrIndStrategyA;                         // (default = 100 ind)
+
+                //--- Running replicate ---
+                for(int round = 1; round <= totalRoundsUpdating; ++round){                  // Run each population for set amount fo rounds
+
+                    localPopulation.PlayInteractionRound(localRng, error1, error2,          // Everyone has one interaction (either as donor or recipient)
+                                                         cost, benefit);
+
+                    //--- Strategy Updating ---
+                    if(round % nrRoundsToUpdateEvent == 0){                                 // Check if round has an update event
+                        localPopulation.DetermineStrategyPayOff();                          // Determine the payoff of both strategies
+                        localPopulation.RunReplicatorDynamics();                            // Add payoff to fitness and determine new generation frequencies
+                        localPopulation.ConstructNewGeneration(socialNorms, actionRules,    // Create the new generation (resets individuals within function)
+                                                               startingPayOff, 
+                                                               startingReputation, 
+                                                               minNrInd);
+                        results[rep][eventIndex++] =                                        // Write the new strategy frequency to file
+                            localPopulation.StrategiesStats.nrIndStrategyA;
+                    }
+                }  
+            });
+        }
+        for(auto& t : threads) t.join();                                                    // Wait till all threads are finished before starting the next batch of replicates
+        cerr << "\nDEBUG batch done, replica=" << replica << "\n";  // cerr is unbuffered!
+
+        int completedReplicas = min(replica + nrThreads, nrReplicasUpdating); //HACK
+        int percentage = (completedReplicas * 100) / nrReplicasUpdating;
+
+        cerr << "DEBUG: replica=" << replica << " completed=" << completedReplicas << " percentage=" << percentage << " nextThreshold=" << nextThreshold << "\n";
+        while (percentage >= nextThreshold && nextThreshold <= 100) { //HACK
+            cout << nextThreshold << "---";
+            nextThreshold += 25;
+        }
     }    
-}
 
+    outputFile << "NrIndStrategy_"                                                          // Write first strategy name to file
+               << strategyNames[StrategiesStats.strategyAIndex] << "\n";
+
+    for(int rep = 0; rep < nrReplicasUpdating; ++rep){                                      // Loop over replicates
+        for(int i = 0; i < results[rep].size(); ++i){                                       // Loop over strategy frequencies of replicate
+            outputFile << results[rep][i];                                                  // Write frequencies to output file
+            if(i < results[rep].size() - 1) outputFile << ",";                              // comma-seperated
+        }
+        outputFile << "\n";                                                                 // New line for each replicate
+    }
+}
 
 /*==========================================================================================
 ============================================================================================
@@ -227,82 +287,79 @@ void PopulationClassStrategyUpdating::RunReplicas(const int replicasPerPop,
 ==========================================================================================*/
 void SimulationStrategyUpdating(const string simulationType,
                                 const double benefit,
-                                const int totalRounds,
+                                const int totalRoundsUpdating,
                                 const array<array<int, nrStrategies>, nrPermutationsUpdating>& allPopulations,
                                 const int nrThreads,
                                 const strategiesSocialNorms& socialNorms,
                                 const strategiesActionRules& actionRules)
 {
-    cout << "\nRunning b/c = " << benefit/cost << "\n";
-        
+    cout << "\nRunning b/c = " << benefit/cost << "\n";                                     // Terminal output
+    
     //--- random nr generator ---
-    mt19937_64 rng;                         // Initialize rng
-    GetSeedRNG(rng);                        // Seed the rng with current time
-    unsigned int baseSeed = rng();          // Extract base seed
+    mt19937_64 rng;                                                                         // Initialize rng
+    GetSeedRNG(rng);                                                                        // Seed the rng with current time
+    unsigned int baseSeed = rng();                                                          // Extract base seed
 
-    auto startCurrentTimer = chrono::high_resolution_clock::now();                  // For terminal output
+    auto start = chrono::high_resolution_clock::now();                          // Keep track of time (for terminal progress)
 
     //--- setup ---
-    string resultsFolder = CreateResultsDirectory(simulationType, cost, benefit,        // Create results directory and stores the name prefix for result files
+    string resultsFolder = CreateResultsDirectory(simulationType, cost, benefit,            // Create results directory and stores the name prefix for result files
                                                   error1, error2,
-                                                  totalRounds);
+                                                  totalRoundsUpdating);
 
 
-    ofstream parameterFile(resultsFolder + "/model_parameters.csv");
+    ofstream parameterFile(resultsFolder + "/model_parameters.csv");                        // Create parameter file to save in results directory
         if(!parameterFile.is_open()){
             cerr << "Error: unable to open output file\n";
             exit(EXIT_FAILURE);
         }
 
-        parameterFile << "cost = " << cost
+        parameterFile << "cost = " << cost                                                  // Write parameters to file
                         << "\nbenefit = " << benefit
                         << "\nerror1 = " << error1
                         << "\nerror2 = " << error2
                         << "\nnrIndividuals = " << nrIndividuals
-                        << "\nnrRounds = " << totalRounds
-                        << "\nnrReplicates = " << nrReplicas;
-        parameterFile.close();
+                        << "\nnrTotalRounds = " << totalRoundsUpdating
+                        << "\nnrRoundsToUpdateEvent = " << nrRoundsToUpdateEvent
+                        << "\nnrReplicates = " << nrReplicasUpdating;
+        parameterFile.close();                                                              // Close parameter file
 
     //--- simulation loop ---
-    for(int simulation = 0; simulation < nrPermutationsUpdating; simulation += nrThreads){          // Runs over simulations in groups based on nrThreads
-    vector<thread> threads;                                                                 // Create vector
-    threads.reserve(nrThreads);                                                             // Reserve space for vector
-
-        for(int t = 0; t < nrThreads && simulation + t < nrPermutationsUpdating; ++t){              // Gives one simulation to each thread, and prevents out of bounds
-            int sim = simulation + t;
-
-            if (sim != 42) { //FIXME once test completed remove   65 = allc/alld
-                continue;
-            }
-            cout << "running\n";
-            threads.push_back(thread([=](){                                                 // Create lambda function (function with no name)
-                mt19937_64 rng(baseSeed + sim);                                             // Create a rng with time and simulation nr
-                array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[sim];    // Store strategy distribution of population 
-                
-                PopulationClassStrategyUpdating myPopulation(socialNorms,                                   // Create population
-                                                             actionRules,
-                                                             nrIndividualsPerStrategy,
-                                                             startingReputation,
-                                                             startingPayOff);
-                
-                ofstream outputFile(resultsFolder + "/Output_" +                            // Create output file for population
-                                    to_string(sim) + ".csv");
-                if(!outputFile.is_open()){                                                  // Open output file
-                    cerr << "Error: unable to open output file\n";
-                    return;
-                }
-                
-                myPopulation.RunReplicas(nrReplicas, startingPayOff,                    // Run replicas of the population
-                                        startingReputation, totalRounds, 
-                                        rng, error1, error2, cost, 
-                                        benefit, socialNorms, actionRules, 
-                                        outputFile);
-                outputFile.close();                                                         // Close output file
-            }));
+    for(int simulation = 0; simulation < nrPermutationsUpdating; ++simulation){             // Loop over population permutations
+            
+        if (simulation != 42) { //FIXME once test completed remove   65 = allc/alld
+            continue;
         }
-        for(auto& t : threads){                                                             // Check all threads                
-            t.join();                                                                       // Wait for all threads to be done
+        cout << simulation + 1 << "/" << nrPermutationsUpdating << " | Progress(%): ---"; //HACK
+
+        array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[simulation];     // Store strategy distribution of population (e.g. 100,100,0,0,0,0,0,0,0,0,0,0)
+        
+        PopulationClassStrategyUpdating tempPopulation(socialNorms, actionRules,            // Create a temporary population to intialize the result directories
+                                                        nrIndividualsPerStrategy,   
+                                                        startingReputation, 
+                                                        startingPayOff);
+                                                        
+        ofstream outputFile(resultsFolder + "/Output_" +                                    // Create output file for population
+                            strategyNames[tempPopulation.StrategiesStats.strategyAIndex] +
+                            "_&_" + 
+                            strategyNames[tempPopulation.StrategiesStats.strategyBIndex] +
+                            ".csv");
+        if(!outputFile.is_open()){                                                          // Open output file
+            cerr << "Error: unable to open output file\n";
+            exit(EXIT_FAILURE);
         }
-        PrintProgress(simulation, nrThreads, nrPermutationsUpdating, startCurrentTimer, benefit, cost);                        // Print to terminal
+        tempPopulation.RunReplicas(rng, nrThreads, baseSeed,                                // Run replicates for the current permutation
+                                   nrIndividualsPerStrategy, benefit, 
+                                   socialNorms, actionRules, outputFile);
+        outputFile.close();                                                                 // Close output file
+
+        auto end = chrono::high_resolution_clock::now(); //HACK
+        chrono::duration<double> elapsed = end - start;
+        double remaining = ((elapsed.count() / (simulation + 1)) * 
+                        (nrPermutationsUpdating - simulation - 1)) / 60;
+
+        cout << " | Elapsed: " << fixed << setprecision(2) << elapsed.count() / 60 << "m"
+            << " | Remaining: " << max(0.0, remaining) << "m"
+            << defaultfloat << "\n";
     }
 }
