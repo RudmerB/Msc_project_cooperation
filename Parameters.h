@@ -17,13 +17,13 @@ constexpr char      startingReputation      = 'G';              // Starting priv
 constexpr double    startingPayOff          = 0.0;              // Starting payoff
 
 //---Specific to Rare Mutant Simulation---
-constexpr int       nrPermutationsMutant    = 132;              // Number of population permutations 
-constexpr int       nrReplicasMutant        = 1000;             // Number of replicates for specific population and parameters
-constexpr int       totalRoundsMutant       = 200;              // Number of rounds to complete replicate
+constexpr int       nrPermutationsMutant    = 132;              // Number of population permutations (132)
+constexpr int       nrReplicasMutant        = 1000;             // Number of replicates for specific population and parameters (1000)
+constexpr int       totalRoundsMutant       = 200;              // Number of rounds to complete replicate (200)
 
 //---Specific to Strategy Updating Simulation---
-constexpr int       nrPermutationsUpdating  = 66;               // Number of population permutations
-constexpr int       nrReplicasUpdating      = 100;                // Number of replicates for specific population and parameters
-constexpr double    baseFitness             = 100.0;            // Base fitness of each individual (used for replicator dynamics, influenced by payoff)
-constexpr int       totalRoundsUpdating     = 100000;           // Number of rounds to complete replicate
-constexpr int       nrRoundsToUpdateEvent   = 100;              // Number of rounds between strategy updating events / constructing new generation
+constexpr int       nrPermutationsUpdating  = 66;               // Number of population permutations (66)
+constexpr int       nrReplicasUpdating      = 12;              // Number of replicates for specific population and parameters (?)
+constexpr double    baseFitness             = 100.0;            // Base fitness of each individual (used for replicator dynamics, influenced by payoff) (100)
+constexpr int       totalRoundsUpdating     = 100000;           // Number of rounds to complete replicate (100000)
+constexpr int       nrRoundsToUpdateEvent   = 100;              // Number of rounds between strategy updating events / constructing new generation (100)

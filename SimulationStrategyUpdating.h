@@ -36,8 +36,7 @@ public:
     void ConstructNewGeneration(const strategiesSocialNorms& socialNorms,
                                 const strategiesActionRules& actionRules,
                                 const double startingPayOff,
-                                const char startingReputation,
-                                const int minNrInd);
+                                const char startingReputation);
 
     void RunReplicas(
                      mt19937_64 &rng,

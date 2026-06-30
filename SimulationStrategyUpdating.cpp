@@ -137,8 +137,7 @@ void PopulationClassStrategyUpdating::RunReplicatorDynamics()
 void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSocialNorms& socialNorms,
                                                              const strategiesActionRules& actionRules,
                                                              const double startingPayOff,
-                                                             const char startingReputation,
-                                                             const int minNrInd)
+                                                             const char startingReputation)
 {
     int targetNrA = StrategiesStats.nrIndStrategyA;         // Store traget nr of individuals in new generation
     int targetNrB = StrategiesStats.nrIndStrategyB;
@@ -174,10 +173,6 @@ void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSoc
         throw logic_error("ConstrcutNewGeneration() failed to correctly reconstruct the population frequencies.\n");
     }
 
-    if(StrategiesStats.nrIndStrategyA < minNrInd || StrategiesStats.nrIndStrategyB == minNrInd) {
-        cout << "One of the strategies has reached fixation, the simulation has stopped\n";
-        exit(EXIT_SUCCESS);
-    }
     ResetIndividuals(startingPayOff, startingReputation);   // Reset the payoff and private reputations of all individuals
 }
 
@@ -247,21 +242,30 @@ void PopulationClassStrategyUpdating::RunReplicas(
                         localPopulation.RunReplicatorDynamics();                            // Add payoff to fitness and determine new generation frequencies
                         localPopulation.ConstructNewGeneration(socialNorms, actionRules,    // Create the new generation (resets individuals within function)
                                                                startingPayOff, 
-                                                               startingReputation, 
-                                                               minNrInd);
+                                                               startingReputation);
                         results[rep][eventIndex++] =                                        // Write the new strategy frequency to file
                             localPopulation.StrategiesStats.nrIndStrategyA;
+                    }
+                    
+                    if (localPopulation.StrategiesStats.nrIndStrategyA <= 5 ||       //FIXME number will be minNrInd
+                            localPopulation.StrategiesStats.nrIndStrategyB <= 5){
+                            int value = localPopulation.StrategiesStats.nrIndStrategyA;
+                            while (eventIndex < results[rep].size()) {
+                                results[rep][eventIndex++] = value;
+                            }
+
+                            break;
                     }
                 }  
             });
         }
         for(auto& t : threads) t.join();                                                    // Wait till all threads are finished before starting the next batch of replicates
-        cerr << "\nDEBUG batch done, replica=" << replica << "\n";  // cerr is unbuffered!
+        //cerr << "\nDEBUG batch done, replica=" << replica << "\n";  // cerr is unbuffered!
 
         int completedReplicas = min(replica + nrThreads, nrReplicasUpdating); //HACK
         int percentage = (completedReplicas * 100) / nrReplicasUpdating;
 
-        cerr << "DEBUG: replica=" << replica << " completed=" << completedReplicas << " percentage=" << percentage << " nextThreshold=" << nextThreshold << "\n";
+        //cerr << "DEBUG: replica=" << replica << " completed=" << completedReplicas << " percentage=" << percentage << " nextThreshold=" << nextThreshold << "\n";
         while (percentage >= nextThreshold && nextThreshold <= 100) { //HACK
             cout << nextThreshold << "---";
             nextThreshold += 25;
@@ -327,9 +331,9 @@ void SimulationStrategyUpdating(const string simulationType,
     //--- simulation loop ---
     for(int simulation = 0; simulation < nrPermutationsUpdating; ++simulation){             // Loop over population permutations
             
-        if (simulation != 42) { //FIXME once test completed remove   65 = allc/alld
-            continue;
-        }
+        //if (simulation != 42) { //FIXME once test completed remove   65 = allc/alld
+        //    continue;
+        //}
         cout << simulation + 1 << "/" << nrPermutationsUpdating << " | Progress(%): ---"; //HACK
 
         array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[simulation];     // Store strategy distribution of population (e.g. 100,100,0,0,0,0,0,0,0,0,0,0)

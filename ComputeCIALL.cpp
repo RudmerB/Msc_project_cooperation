@@ -41,7 +41,7 @@ int main (){
             //*******************************************************************************
             // Middle-loop runs over the permutations(different populations, same parameters)
             //*******************************************************************************
-            for (int i = 0; i < nrPermutations; ++i){
+            for (int i = 0; i < nrPermutationsMutant; ++i){
 
                 ifstream dataFile(folderName + "/" + subFolderName + "/Output_" + to_string(i) + ".csv");
                 if(!dataFile.is_open()){                                                  // Open input file
@@ -50,14 +50,14 @@ int main (){
                 }
 
                 int rowCount = 0;
-                array <double, nrReplicas> residentPayOff;
-                array <double, nrReplicas> mutantPayOff;
-                array <double, nrReplicas> payOffDifference;
+                array <double, nrReplicasMutant> residentPayOff;
+                array <double, nrReplicasMutant> mutantPayOff;
+                array <double, nrReplicasMutant> payOffDifference;
 
                 //*******************************************************************************
                 // Inner-loop runs over the replicas of the same permutation
                 //*******************************************************************************
-                for (int j = 0; j < nrReplicas; ++j){
+                for (int j = 0; j < nrReplicasMutant; ++j){
                     ++rowCount;
                     string line;
                     getline(dataFile, line);
@@ -72,9 +72,9 @@ int main (){
                     payOffDifference[j] = mutantPayOff[j] - residentPayOff[j];
                 }
 
-                if (rowCount != nrReplicas) {                           // If the number of rows does not equal global parameter...
+                if (rowCount != nrReplicasMutant) {                           // If the number of rows does not equal global parameter...
                     cerr << "\nError: file has " << rowCount                // ...throw error message
-                         << " rows, expected " << nrReplicas 
+                         << " rows, expected " << nrReplicasMutant 
                          << "\n\n";
                     exit(EXIT_FAILURE);                                     // Exit program
                 }
