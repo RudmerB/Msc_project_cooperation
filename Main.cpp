@@ -3,6 +3,7 @@
 #include <thread>
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
 
 #include "Parameters.h"
 #include "Utilities.h"
@@ -42,6 +43,7 @@ int main()
     string simulationType = " ";
     string permutationsFile = " ";
     int nrPermutations = 0;
+    array<double, 11> benefitArray = {1.05, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
 
     int userInput = 0;
     cout << "What program do you want to run?\n"
@@ -109,9 +111,20 @@ int main()
         if (!filesystem::exists("results_updating")) {
         system("mkdir results_updating");
         }
-        
-        const double benefit = 2.0;
-        SimulationStrategyUpdating(simulationType, benefit, totalRoundsUpdating, allPopulations, nrThreads, socialNorms, actionRules);
+
+        double userInputBenefit = 0.0;
+        cout << "What should the benefit value be?\n"
+             << "Choose from 1.05, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0\n";
+        cin >> userInputBenefit;
+        if (userInputBenefit != 1.05)
+
+        if (find(benefitArray.begin(), benefitArray.end(), userInputBenefit) != benefitArray.end()) {
+        //  ^If value not found, return iterator of data range end           ^Value found when iterator does not point to data range end
+            SimulationStrategyUpdating(simulationType, userInputBenefit, totalRoundsUpdating, allPopulations, nrThreads, socialNorms, actionRules);
+        }
+        else {
+            exit(EXIT_FAILURE);
+        }
     }
     return 0;
 }
