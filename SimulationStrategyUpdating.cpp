@@ -197,9 +197,6 @@ void PopulationClassStrategyUpdating::RunReplicas(
     vector<vector<int>> results(nrReplicasUpdating, vector<int>(nrUpdateEvents + 1));       // Create a matrix for results
     // ^Define Matrix   ^Name   ^Nr rows            ^Nr values per replicate     ^Initial frequencies
 
-    //--- Calculate min nrInd ---
-    const int minNrInd = nrIndividuals / 100 * 1;                                           // Determines when to end a simulation
-
     int nextThreshold = 25; //HACK 
 
     //--- Run replicats ---
@@ -247,8 +244,8 @@ void PopulationClassStrategyUpdating::RunReplicas(
                             localPopulation.StrategiesStats.nrIndStrategyA;
                     }
                     
-                    if (localPopulation.StrategiesStats.nrIndStrategyA <= 5 ||       //FIXME number will be minNrInd
-                            localPopulation.StrategiesStats.nrIndStrategyB <= 5){
+                    if (localPopulation.StrategiesStats.nrIndStrategyA <= minNrInd ||       //TODO comment update, looks to see if frequencies are above 
+                            localPopulation.StrategiesStats.nrIndStrategyB <= minNrInd){
                             int value = localPopulation.StrategiesStats.nrIndStrategyA;
                             while (eventIndex < results[rep].size()) {
                                 results[rep][eventIndex++] = value;
@@ -267,13 +264,13 @@ void PopulationClassStrategyUpdating::RunReplicas(
 
         //cerr << "DEBUG: replica=" << replica << " completed=" << completedReplicas << " percentage=" << percentage << " nextThreshold=" << nextThreshold << "\n";
         while (percentage >= nextThreshold && nextThreshold <= 100) { //HACK
-            cout << nextThreshold << "---";
+            cout << "---" << nextThreshold;
             nextThreshold += 25;
         }
     }    
 
-    outputFile << "NrIndStrategy_"                                                          // Write first strategy name to file
-               << strategyNames[StrategiesStats.strategyAIndex] << "\n";
+    //outputFile << "NrIndStrategy_"                                                          //TODO Write first strategy name to file---- moved to main function
+    //          << strategyNames[StrategiesStats.strategyAIndex] << "\n";
 
     for(int rep = 0; rep < nrReplicasUpdating; ++rep){                                      // Loop over replicates
         for(int i = 0; i < results[rep].size(); ++i){                                       // Loop over strategy frequencies of replicate
@@ -334,7 +331,7 @@ void SimulationStrategyUpdating(const string simulationType,
         //if (simulation != 42) { //FIXME once test completed remove   65 = allc/alld
         //    continue;
         //}
-        cout << simulation + 1 << "/" << nrPermutationsUpdating << " | Progress(%): ---"; //HACK
+        cout << simulation + 1 << "/" << nrPermutationsUpdating << " | Progress(%): "; //HACK
 
         array<int, nrStrategies> nrIndividualsPerStrategy = allPopulations[simulation];     // Store strategy distribution of population (e.g. 100,100,0,0,0,0,0,0,0,0,0,0)
         
@@ -342,16 +339,44 @@ void SimulationStrategyUpdating(const string simulationType,
                                                         nrIndividualsPerStrategy,   
                                                         startingReputation, 
                                                         startingPayOff);
-                                                        
-        ofstream outputFile(resultsFolder + "/Output_" +                                    // Create output file for population
-                            strategyNames[tempPopulation.StrategiesStats.strategyAIndex] +
-                            "_&_" + 
-                            strategyNames[tempPopulation.StrategiesStats.strategyBIndex] +
-                            ".csv");
-        if(!outputFile.is_open()){                                                          // Open output file
+                       
+        string outputFileName = resultsFolder + "/Output_" +
+                        to_string(simulation) + "_" + 
+                        strategyNames[tempPopulation.StrategiesStats.strategyAIndex] +
+                        "_&_" +
+                        strategyNames[tempPopulation.StrategiesStats.strategyBIndex] +
+                        ".csv";
+
+        // Check if already complete
+        ifstream checkFile(outputFileName);
+        int existingLines = 0;
+
+        if (checkFile.is_open()) {
+            existingLines = count(istreambuf_iterator<char>(checkFile),
+                                  istreambuf_iterator<char>(), '\n');
+}
+        checkFile.close();
+        //cout << "existingLines = " << existingLines << endl;
+        //cout << "nrReplicasUpdatingTotal = " << nrReplicasUpdatingTotal << endl;
+
+        if (existingLines >= nrReplicasUpdatingTotal + 1) {
+            cout << "Skipping - already complete\n";
+            continue;
+        }
+
+        // Open for writing
+        ofstream outputFile(outputFileName, ios::app);
+        if(!outputFile.is_open()){
             cerr << "Error: unable to open output file\n";
             exit(EXIT_FAILURE);
         }
+
+        // Write header only if file is new (empty)
+        if (existingLines == 0) {
+            outputFile << "NrIndStrategy_"
+                    << strategyNames[tempPopulation.StrategiesStats.strategyAIndex] << "\n";
+        }                                               
+
         tempPopulation.RunReplicas(rng, nrThreads, baseSeed,                                // Run replicates for the current permutation
                                    nrIndividualsPerStrategy, benefit, 
                                    socialNorms, actionRules, outputFile);

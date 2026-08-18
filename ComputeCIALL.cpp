@@ -29,7 +29,7 @@ int main (){
 
             cout << "Processing: " << subFolderName << endl;
             string summaryName = "summaries/summary" + subFolderName.substr(7) + ".csv";
-        
+
             ofstream summaryFile(summaryName);
             if(!summaryFile.is_open()){                                                  // Open output file
                 cerr << "Error: unable to open output file\n";

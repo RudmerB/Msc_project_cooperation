@@ -110,7 +110,7 @@ int main()
         system("mkdir results_updating");
         }
         
-        const double benefit = 2.0;
+        const double benefit = 1.05;
         SimulationStrategyUpdating(simulationType, benefit, totalRoundsUpdating, allPopulations, nrThreads, socialNorms, actionRules);
     }
     return 0;
