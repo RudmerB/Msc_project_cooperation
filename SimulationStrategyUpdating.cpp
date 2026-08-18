@@ -148,6 +148,10 @@ void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSoc
         if (population[i].strategyLabel == 'A') {           // If the individual is currently 'A'...
             if (currentNrA < targetNrA) {                   // ...And if the counted nr of 'A' is smaller than the target...
                 ++currentNrA;                               // ...Add this individual (still 'A') to the current counter A
+                if(population[i].socialNorm != socialNorms.socialNorm[StrategiesStats.strategyAIndex] ||
+                   population[i].actionRule != actionRules.actionRule[StrategiesStats.strategyAIndex]) {
+                    throw logic_error("An 'A'-Labelled individual with mismatching socialnorm/actionrule has been found\n");
+                   }
             }
             else {                                          // If the counted nr of individuals is not smaller than the target...
                 population[i].socialNorm = socialNorms.socialNorm[StrategiesStats.strategyBIndex];      // Switch social norm to 'B'
@@ -159,6 +163,10 @@ void PopulationClassStrategyUpdating::ConstructNewGeneration(const strategiesSoc
         else if (population[i].strategyLabel == 'B') {      // Else if the individual is currently 'B'...
             if (currentNrB < targetNrB) {                   // ...And if the counted nr of 'B' is smaller than the target...
                 ++currentNrB;                               // ...Add this individual (still 'B') to the current counter B
+                if(population[i].socialNorm != socialNorms.socialNorm[StrategiesStats.strategyBIndex] ||
+                   population[i].actionRule != actionRules.actionRule[StrategiesStats.strategyBIndex]) {
+                    throw logic_error("A 'B'-Labelled individual with mismatching socialnorm/actionrule has been found\n");
+                   }
             }
             else {                                          // If the counted nr of individuals is not smaller than the target
                 population[i].socialNorm = socialNorms.socialNorm[StrategiesStats.strategyAIndex];      // Switch social norm to 'A'
@@ -257,9 +265,8 @@ void PopulationClassStrategyUpdating::RunReplicas(
             });
         }
         for(auto& t : threads) t.join();                                                    // Wait till all threads are finished before starting the next batch of replicates
-        //cerr << "\nDEBUG batch done, replica=" << replica << "\n";  // cerr is unbuffered!
 
-        int completedReplicas = min(replica + nrThreads, nrReplicasUpdating); //HACK
+        int completedReplicas = min(replica + nrThreads, nrReplicasUpdating); //TODO add comment
         int percentage = (completedReplicas * 100) / nrReplicasUpdating;
 
         //cerr << "DEBUG: replica=" << replica << " completed=" << completedReplicas << " percentage=" << percentage << " nextThreshold=" << nextThreshold << "\n";
@@ -301,7 +308,7 @@ void SimulationStrategyUpdating(const string simulationType,
     GetSeedRNG(rng);                                                                        // Seed the rng with current time
     unsigned int baseSeed = rng();                                                          // Extract base seed
 
-    auto start = chrono::high_resolution_clock::now();                          // Keep track of time (for terminal progress)
+    auto start = chrono::high_resolution_clock::now();                                      // Keep track of time (for terminal progress)
 
     //--- setup ---
     string resultsFolder = CreateResultsDirectory(simulationType, cost, benefit,            // Create results directory and stores the name prefix for result files
@@ -387,8 +394,9 @@ void SimulationStrategyUpdating(const string simulationType,
         double remaining = ((elapsed.count() / (simulation + 1)) * 
                         (nrPermutationsUpdating - simulation - 1)) / 60;
 
-        cout << " | Elapsed: " << fixed << setprecision(2) << elapsed.count() / 60 << "m"
-            << " | Remaining: " << max(0.0, remaining) << "m"
-            << defaultfloat << "\n";
+        cout << " | " << "Elapsed: " << setw(3) << fixed << setprecision(2)                 // Show runtime and //TODO
+             << elapsed.count() / 60 << "m"    
+             << " | Remaining: " << setw(3) << max(0.0, remaining) << "m"
+             << defaultfloat << "\n";
     }
 }

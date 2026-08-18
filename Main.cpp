@@ -3,6 +3,7 @@
 #include <thread>
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
 
 #include "Parameters.h"
 #include "Utilities.h"
@@ -42,6 +43,7 @@ int main()
     string simulationType = " ";
     string permutationsFile = " ";
     int nrPermutations = 0;
+    array<double, 11> benefitArray = {1.05, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
 
     int userInput = 0;
     cout << "What program do you want to run?\n"
