@@ -3,10 +3,11 @@
 #include <sstream>
 #include <string>
 #include <array>
+#include <vector>
 #include <filesystem>
 
 #include "Parameters.h"
-#include "ComputeCI.h"
+
 using namespace std;
 
 
@@ -42,6 +43,88 @@ int main (){
             // Middle-loop runs over the permutations(different populations, same parameters)
             //*******************************************************************************
             for (int i = 0; i < nrPermutationsUpdating; ++i){
+                
+                for (const auto& subsubEntry : filesystem::directory_iterator(subEntry)){
+                    if (!subsubEntry.is_regular_file()) continue;
+
+                    string filename = subsubEntry.path().filename().string();
+                    
+                    string prefix = "Output_" + to_string(i) + "_";
+
+                    if (filename.rfind(prefix, 0) == 0) { //?
+                        string rest = filename.substr(prefix.size());
+                        string nameOnly = rest.substr(0, rest.size() - 4); //-4 removes .csv
+
+                        string sep = "_&_";
+                        size_t sepPos = nameOnly.find(sep); //position of the seperator
+
+                        string name1 = nameOnly.substr(0, sepPos);          // "L1"
+                        string name2 = nameOnly.substr(sepPos + sep.size()); // "L3"
+
+                        ifstream dataFile(entry.path()); // open the actual file
+                        
+                        /*
+                        Here come the operations that are done within a file*/
+                        //cout << "i=" << i << " name1=" << name1 << " name2=" << name2 << "\n";
+                        
+                        
+                        int rowCount = 0; //keep track of replicas
+                        int nrWinsStrategy1 = 0;
+                        int nrWinsStrategy2 = 0;
+
+                        for (int j = 0; j < nrReplicasUpdatingTotal; ++j){                          // goes over one line 
+                            ++rowCount;
+                            string line;
+                            getline(dataFile, line);                                                // get line in memory
+                            stringstream ss(line);          //100,101,102,102,103
+                    
+                            int nrGenerations = totalRoundsUpdating/nrRoundsToUpdateEvent;
+                            vector<double> strategy1Frequency;
+                            strategy1Frequency.reserve(nrGenerations);
+                            string frequencyString;
+                            double frequency = 0.0;
+
+                            for (int k = 0; k < nrGenerations; ++k){;                               // Run over the line
+                                getline(ss,frequencyString, ',');                                      // get each value
+                                frequency = stod(frequencyString);
+
+                                if (frequency <= minNrInd){                                // check if value is 5 or under
+                                    ++nrWinsStrategy2;
+                                    continue;
+                                } 
+                        
+                                else if (frequency >= nrIndividuals - minNrInd){           // check if value is 195 or above
+                                    ++nrWinsStrategy1;
+                                    continue;
+                                }
+                                //else{}
+                            }
+                        }
+                        
+                        if (rowCount != nrReplicasUpdatingTotal) {                           // If the number of rows does not equal global parameter...
+                            cerr << "\nError: file has " << rowCount                // ...throw error message
+                                << " rows, expected " << nrReplicasUpdatingTotal 
+                                << "\n\n";
+                            exit(EXIT_FAILURE);                                     // Exit program
+                        }
+
+                        summaryFile << i << ","
+                            << name1 << "," << nrWinsStrategy1 << ","
+                            << name2 << "," << nrWinsStrategy2 << "\n";
+
+                        break; // found the file for this i, stop searching the folder
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+
+
+/*
+                ifstream dataFile(folderName + "/" + subFolderName + "/Output_" + to_string(i) + "_" )
 
                 ifstream dataFile(folderName + "/" + subFolderName + "/Output_" + to_string(i) + (here goes extra stuff) ".csv"); //TODO wont open because names are different 
                 if(!dataFile.is_open()){                                                  // Open input file
@@ -53,9 +136,9 @@ int main (){
                 int nrWinsStrategy1 = 0;
                 int nrWinsStrategy2 = 0;
 
-                //*******************************************************************************
+                *******************************************************************************
                 // Inner-loop runs over the replicas of the same permutation
-                //*******************************************************************************
+                *******************************************************************************
                 for (int j = 0; j < nrReplicasUpdatingTotal; ++j){                          // goes over one line 
                     ++rowCount;
                     string line;
@@ -100,4 +183,4 @@ int main (){
         }
     }
     return 0;
-}
+}*/
