@@ -132,8 +132,8 @@ int main()
         }    
 
         const double benefit = 2.0;
-        array<int, nrStrategies> startingFrequencies{0,0,0,0,0,0,0,0,0,0,120,120};
-        //startingFrequencies.fill(20);                      // 20 individuals per strategy, all 12 active
+        array<int, nrStrategies> startingFrequencies; //{0,0,0,0,0,0,0,0,0,0,120,120};
+        startingFrequencies.fill(20);                      // 20 individuals per strategy, all 12 active
 
         SimulationStrategyUpdatingAllStrats(simulationType, benefit, totalRoundsUpdating, startingFrequencies, nrThreads, socialNorms, actionRules);
     }
