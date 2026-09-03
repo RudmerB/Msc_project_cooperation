@@ -63,7 +63,7 @@ PopulationClassStrategyUpdating::PopulationClassStrategyUpdating(const strategie
         throw logic_error("The number of assigned individuals does not "
                           "equal the population size.\n");
     }
-    if (StrategiesStats.nrIndStrategyA + StrategiesStats.nrIndStrategyA != nrIndividuals) { // Safety check: Is the number of A and B equal to the total?
+    if (StrategiesStats.nrIndStrategyA + StrategiesStats.nrIndStrategyB != nrIndividuals) { // Safety check: Is the number of A and B equal to the total?
         throw logic_error("The number of assigned individuals does not "
                           "equal the population size.\n");
     }

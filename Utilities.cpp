@@ -45,6 +45,7 @@ void shuffle(array<int, nrIndividuals> &array,                      // Shuffle f
 }
 
 
+
 /*------------------------------------------------------------------------------------------
 --------------------------------------------------------------------------------------------
 ---------------         Check global parameters with input file             ----------------
@@ -149,13 +150,25 @@ string CreateResultsDirectory(const string simulationType,
     oss_e1 << defaultfloat << (double)error1;
     oss_e2 << defaultfloat << (double)error2;
 
-    string resultsFolder = "results_" + simulationType + "\\results_ind" + to_string(nrIndividuals) +
-                        "_rounds" + to_string(totalRounds) +
-                        "_c" + oss_cost.str() +
-                        "_b" + oss_benefit.str() +
-                        "_e1-" + oss_e1.str() +
-                        "_e2-" + oss_e2.str();
+    string resultsFolder = " ";
 
+    if (simulationType == "mutant" || simulationType == "updating") {
+        resultsFolder = "results_" + simulationType + "\\results_ind" + to_string(nrIndividuals) +
+                            "_rounds" + to_string(totalRounds) +
+                            "_c" + oss_cost.str() +
+                            "_b" + oss_benefit.str() +
+                            "_e1-" + oss_e1.str() +
+                            "_e2-" + oss_e2.str();
+    }
+    else if (simulationType == "updating_allstrats") {
+        resultsFolder = "results_" + simulationType + "\\results_ind" + to_string(nrIndividuals) +
+                            "_rounds" + to_string(totalRounds) +
+                            "_c" + oss_cost.str() +
+                            "_b" + oss_benefit.str() +
+                            "_e1-" + oss_e1.str() +
+                            "_e2-" + oss_e2.str();
+    }
+    
     system(("mkdir " + resultsFolder).c_str());
     // resultsFolder uses \\ for mkdir
     // but ofstream uses / so replace:
@@ -170,9 +183,9 @@ string CreateResultsDirectory(const string simulationType,
 -----------------------       Terminal output Progress               -----------------------
 --------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------*/
-void PrintProgress(const int simulation,
+void PrintProgress(const int simulation, //can also be replica
                    const int nrThreads,
-                   const int nrPermutations,
+                   const int nrPermutations,    //can also be total nr replicas
                    const chrono::high_resolution_clock::time_point start,
                    const double benefit,
                    const double cost)
