@@ -11,14 +11,15 @@ project(${ProjectName})
 
 # Add source to this project's executable.
 
-add_executable (${ProjectName} "Main.cpp"
-                               "BasePopulation.cpp"
-                               "SimulationRareMutant.cpp"
-                               "SimulationStrategyUpdating.cpp"
-                               "SimulationStrategyUpdatingAll.cpp"
-                               "Utilities.cpp"
-                               "CreateInputFiles.cpp")
+#add_executable (${ProjectName} "Main.cpp"
+#                               "BasePopulation.cpp"
+#                               "SimulationRareMutant.cpp"
+#                               "SimulationStrategyUpdating.cpp"
+#                              "SimulationStrategyUpdatingAll.cpp"
+#                               "Utilities.cpp"
+#                               "CreateInputFiles.cpp")
 #add_executable (${ProjectName} "AnalyzeResultsUpdating.cpp")
+add_executable (${ProjectName} "AnalyzeResultsUpdatingAllStrats.cpp")
 
 target_link_options(${ProjectName} PRIVATE -static)
 set_target_properties(${ProjectName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/$<0:>)
