@@ -388,7 +388,7 @@ void SimulationStrategyUpdatingAllStrats(const string simulationType,
                         << "\nnrIndividuals = " << nrIndividuals
                         << "\nnrTotalRounds = " << totalRoundsUpdating
                         << "\nnrRoundsToUpdateEvent = " << nrRoundsToUpdateEvent
-                        << "\nnrReplicates = " << nrReplicasUpdating;
+                        << "\nnrReplicates = " << nrReplicasUpdatingTotalAllStrats;
     parameterFile.close();                                                              // Close parameter file
 
     //--- simulation loop ---    
