@@ -2,6 +2,7 @@
 #include <fstream>
 #include <thread>
 #include <iomanip>
+#include <string>
 
 // Header Files
 #include "Parameters.h"
@@ -198,12 +199,22 @@ void PopulationClassStrategyUpdating::RunReplicas(
                                   const double benefit,
                                   const strategiesSocialNorms& socialNorms,
                                   const strategiesActionRules& actionRules,
-                                  ofstream &outputFile)
+                                  ofstream &outputFile,
+                                  ofstream &finalPayoffFile)
 {   
     //--- Create results matrix ---
     int nrUpdateEvents = totalRoundsUpdating/nrRoundsToUpdateEvent;                         // Calculate the nr of update events 
-    vector<vector<int>> results(nrReplicasUpdating, vector<int>(nrUpdateEvents + 1));       // Create a matrix for results
-    // ^Define Matrix   ^Name   ^Nr rows            ^Nr values per replicate     ^Initial frequencies
+    vector<vector<int>> results(nrReplicasUpdating, vector<int>(nrUpdateEvents));       // Create a matrix for results
+    // ^Define Matrix   ^Name   ^Nr rows            ^Nr values per replicate   
+    
+    vector<vector<pair<double,double>>> payoffResults(                                       // Payoff of (A,B) per replicate/event
+        nrReplicasUpdating, vector<pair<double,double>>(nrUpdateEvents, {0.0, 0.0})
+    );
+
+    vector<double> finalPayoffA(nrReplicasUpdating, -1.0);                                   // -1 = not applicable
+    vector<double> finalPayoffB(nrReplicasUpdating, -1.0);
+    vector<string> outcome(nrReplicasUpdating, "coexistence");
+    vector<string> winnerName(nrReplicasUpdating, "none");
 
     int nextThreshold = 25; //HACK 
 
@@ -219,7 +230,8 @@ void PopulationClassStrategyUpdating::RunReplicas(
         //             don't exceed usable threads
 
             int rep = replica + t;                                                          // Determine true replica index (replica=8 & t=2, means thread handles replica 10)
-            threads.emplace_back([=, &results](){                                           // Construct thread obejct in vector
+             threads.emplace_back([=, &results, &payoffResults, &finalPayoffA, &finalPayoffB, &outcome, &winnerName](){
+                                          // Construct thread obejct in vector
             //                    ^  ^
             //                    |  pass results by Reference (different threads need to right to same matrix)
             //                    pass local variables given by RunReplicas() by value
@@ -232,36 +244,52 @@ void PopulationClassStrategyUpdating::RunReplicas(
                                                                 startingReputation,
                                                                 startingPayOff);
                 int eventIndex = 0;                                                         // Initiate updating-event counter
-                results[rep][eventIndex++] =                                                // Write initial frequency to matrix 
-                    localPopulation.StrategiesStats.nrIndStrategyA;                         // (default = 100 ind)
-
+                bool reachedFixation = false;
+                
                 //--- Running replicate ---
-                for(int round = 1; round <= totalRoundsUpdating; ++round){                  // Run each population for set amount fo rounds
+                for(int round = 1; round <= totalRoundsUpdating; ++round){
 
-                    localPopulation.PlayInteractionRound(localRng, error1, error2,          // Everyone has one interaction (either as donor or recipient)
-                                                         cost, benefit);
+                    localPopulation.PlayInteractionRound(localRng, error1, error2, cost, benefit);
 
-                    //--- Strategy Updating ---
-                    if(round % nrRoundsToUpdateEvent == 0){                                 // Check if round has an update event
-                        localPopulation.DetermineStrategyPayOff();                          // Determine the payoff of both strategies
-                        localPopulation.RunReplicatorDynamics();                            // Add payoff to fitness and determine new generation frequencies
-                        localPopulation.ConstructNewGeneration(socialNorms, actionRules,    // Create the new generation (resets individuals within function)
-                                                               startingPayOff, 
-                                                               startingReputation);
-                        results[rep][eventIndex++] =                                        // Write the new strategy frequency to file
-                            localPopulation.StrategiesStats.nrIndStrategyA;
-                    }
-                    
-                    if (localPopulation.StrategiesStats.nrIndStrategyA <= minNrInd ||       //TODO comment update, looks to see if frequencies are above 
-                            localPopulation.StrategiesStats.nrIndStrategyB <= minNrInd){
+                    if(round % nrRoundsToUpdateEvent == 0){
+                        localPopulation.DetermineStrategyPayOff();                                     // payoff for CURRENT composition, after it played its rounds
+
+                        results[rep][eventIndex] = localPopulation.StrategiesStats.nrIndStrategyA;
+                        ++eventIndex;
+
+                        // Check fixation using the composition payoff was JUST measured for
+                        if (localPopulation.StrategiesStats.nrIndStrategyA <= minNrInd ||
+                                localPopulation.StrategiesStats.nrIndStrategyB <= minNrInd){
+
                             int value = localPopulation.StrategiesStats.nrIndStrategyA;
                             while (eventIndex < results[rep].size()) {
                                 results[rep][eventIndex++] = value;
                             }
 
-                            break;
+                            reachedFixation = true;
+                            bool aWon = localPopulation.StrategiesStats.nrIndStrategyA > localPopulation.StrategiesStats.nrIndStrategyB;
+                            outcome[rep] = "fixation";
+                            winnerName[rep] = aWon ? strategyNames[localPopulation.StrategiesStats.strategyAIndex]
+                                                : strategyNames[localPopulation.StrategiesStats.strategyBIndex];
+                            finalPayoffA[rep] = localPopulation.StrategiesStats.avgStrategyAPayOff;    // correctly paired now
+                            finalPayoffB[rep] = localPopulation.StrategiesStats.avgStrategyBPayOff;
+
+                            break;                                                                     // stop BEFORE running RunReplicatorDynamics/ConstructNewGeneration
+                        }
+
+                        localPopulation.RunReplicatorDynamics();
+                        localPopulation.ConstructNewGeneration(socialNorms, actionRules,
+                                                            startingPayOff, 
+                                                            startingReputation);
                     }
-                }  
+                }
+
+                if (!reachedFixation) {
+                    finalPayoffA[rep] = localPopulation.StrategiesStats.avgStrategyAPayOff;
+                    finalPayoffB[rep] = localPopulation.StrategiesStats.avgStrategyBPayOff;
+                    outcome[rep] = "coexistence";
+                    winnerName[rep] = "none";
+                }
             });
         }
         for(auto& t : threads) t.join();                                                    // Wait till all threads are finished before starting the next batch of replicates
@@ -286,8 +314,15 @@ void PopulationClassStrategyUpdating::RunReplicas(
         }
         outputFile << "\n";                                                                 // New line for each replicate
     }
-}
 
+    for(int rep = 0; rep < nrReplicasUpdating; ++rep){
+        finalPayoffFile << rep << "," << outcome[rep] << "," << winnerName[rep] << ",";
+        if (finalPayoffA[rep] >= 0.0) finalPayoffFile << finalPayoffA[rep];
+        finalPayoffFile << ",";
+        if (finalPayoffB[rep] >= 0.0) finalPayoffFile << finalPayoffB[rep];
+        finalPayoffFile << "\n";
+    }
+}
 /*==========================================================================================
 ============================================================================================
 =============================       Complete simulation       ==============================
@@ -317,20 +352,20 @@ void SimulationStrategyUpdating(const string simulationType,
 
 
     ofstream parameterFile(resultsFolder + "/model_parameters.csv");                        // Create parameter file to save in results directory
-        if(!parameterFile.is_open()){
-            cerr << "Error: unable to open output file\n";
-            exit(EXIT_FAILURE);
-        }
+    if(!parameterFile.is_open()){
+        cerr << "Error: unable to open output file\n";
+        exit(EXIT_FAILURE);
+    }
 
-        parameterFile << "cost = " << cost                                                  // Write parameters to file
-                        << "\nbenefit = " << benefit
-                        << "\nerror1 = " << error1
-                        << "\nerror2 = " << error2
-                        << "\nnrIndividuals = " << nrIndividuals
-                        << "\nnrTotalRounds = " << totalRoundsUpdating
-                        << "\nnrRoundsToUpdateEvent = " << nrRoundsToUpdateEvent
-                        << "\nnrReplicates = " << nrReplicasUpdatingTotal;
-        parameterFile.close();                                                              // Close parameter file
+    parameterFile << "cost = " << cost                                                  // Write parameters to file
+                    << "\nbenefit = " << benefit
+                    << "\nerror1 = " << error1
+                    << "\nerror2 = " << error2
+                    << "\nnrIndividuals = " << nrIndividuals
+                    << "\nnrTotalRounds = " << totalRoundsUpdating
+                    << "\nnrRoundsToUpdateEvent = " << nrRoundsToUpdateEvent
+                    << "\nnrReplicates = " << nrReplicasUpdatingTotal;
+    parameterFile.close();                                                              // Close parameter file
 
     //--- simulation loop ---
     for(int simulation = 0; simulation < nrPermutationsUpdating; ++simulation){             // Loop over population permutations
@@ -353,22 +388,45 @@ void SimulationStrategyUpdating(const string simulationType,
                         "_&_" +
                         strategyNames[tempPopulation.StrategiesStats.strategyBIndex] +
                         ".csv";
+        
+        string finalPayoffFileName = resultsFolder + "/OutputPayOff_" +
+                        to_string(simulation) + "_" + 
+                        strategyNames[tempPopulation.StrategiesStats.strategyAIndex] +
+                        "_&_" +
+                        strategyNames[tempPopulation.StrategiesStats.strategyBIndex] +
+                        ".csv";
 
         // Check if already complete
-        ifstream checkFile(outputFileName);
         int existingLines = 0;
+        string line;
 
-        if (checkFile.is_open()) {
-            existingLines = count(istreambuf_iterator<char>(checkFile),
-                                  istreambuf_iterator<char>(), '\n');
-}
+        ifstream checkFile(outputFileName);
+        while (getline(checkFile, line)) {
+            ++existingLines;
+        }
         checkFile.close();
+
+
+        int existingLinesPayOff = 0;
+        string linePO;
+
+        ifstream checkPOFile(finalPayoffFileName);
+        while (getline(checkPOFile, linePO)) {
+            ++existingLinesPayOff;
+        }
+        checkPOFile.close();
+
         //cout << "existingLines = " << existingLines << endl;
         //cout << "nrReplicasUpdatingTotal = " << nrReplicasUpdatingTotal << endl;
 
         if (existingLines >= nrReplicasUpdatingTotal + 1) {
             cout << "Skipping - already complete\n";
             continue;
+        }
+
+        if (existingLines != existingLinesPayOff) {
+            cout << "match-up issue with frequency and payoff files\n";
+            return;
         }
 
         // Open for writing
@@ -378,16 +436,29 @@ void SimulationStrategyUpdating(const string simulationType,
             exit(EXIT_FAILURE);
         }
 
+        ofstream finalPayoffFile(finalPayoffFileName, ios::app);
+        if(!finalPayoffFile.is_open()){
+            cerr << "Error: unable to open payoff file\n";
+            exit(EXIT_FAILURE);
+        }
+
         // Write header only if file is new (empty)
         if (existingLines == 0) {
             outputFile << "NrIndStrategy_"
                     << strategyNames[tempPopulation.StrategiesStats.strategyAIndex] << "\n";
+
+            finalPayoffFile << "Replicate,Outcome,Winner,AvgPayoff_" 
+                            << strategyNames[tempPopulation.StrategiesStats.strategyAIndex]
+                            << ",AvgPayoff_"
+                            << strategyNames[tempPopulation.StrategiesStats.strategyBIndex]
+                            << "\n";
         }                                               
 
         tempPopulation.RunReplicas(rng, nrThreads, baseSeed,                                // Run replicates for the current permutation
                                    nrIndividualsPerStrategy, benefit, 
-                                   socialNorms, actionRules, outputFile);
+                                   socialNorms, actionRules, outputFile, finalPayoffFile);
         outputFile.close();                                                                 // Close output file
+        finalPayoffFile.close();
 
         auto end = chrono::high_resolution_clock::now(); //HACK
         chrono::duration<double> elapsed = end - start;

@@ -46,7 +46,8 @@ public:
                      const double benefit,
                      const strategiesSocialNorms& socialNorms,
                      const strategiesActionRules& actionRules,
-                     ofstream &outputFile);
+                     ofstream &outputFile,
+                     ofstream &finalPayoffFile);
 };
 
 
