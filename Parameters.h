@@ -25,10 +25,10 @@ constexpr int       totalRoundsMutant       = 200;              // Number of rou
 
 //---Specific to Strategy Updating Simulation---
 constexpr int       nrPermutationsUpdating  = 66;               // Number of population permutations (66)
-constexpr int       nrReplicasUpdating      = 8;  //100            // Number of replicates for specific population and parameters (?)
+constexpr int       nrReplicasUpdating      = 100;  //100            // Number of replicates for specific population and parameters (?)
 constexpr int       nrReplicasUpdatingTotal = 400;  //400            // Test
 constexpr double    baseFitness             = 100.0;            // Base fitness of each individual (used for replicator dynamics, influenced by payoff) (100)
-constexpr int       totalRoundsUpdating     = 10000;  //100000         // Number of rounds to complete replicate (100000)
+constexpr int       totalRoundsUpdating     = 100000;  //100000         // Number of rounds to complete replicate (100000)
 constexpr int       nrRoundsToUpdateEvent   = 100;              // Number of rounds between strategy updating events / constructing new generation (100)
 constexpr int       minNrInd                = 5;
 

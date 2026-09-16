@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 #include <filesystem>
+#include <cmath>
 
 #include "Parameters.h"
 
@@ -23,7 +24,6 @@ int main (){
 
 
         for (const auto& subEntry : filesystem::directory_iterator(entry.path())){      // Loop over items in results_updating
-            
             if (!subEntry.is_directory()) continue;                                     // If item is not a directory ignore
             string subFolderName = subEntry.path().filename().string();                 // Create subfoldername variable
             if (subFolderName.substr(0, 8) != "results_") continue;                     // If subfoldername doesn't start with results_ ignore
@@ -43,140 +43,299 @@ int main (){
             }
 
             summaryFile << "simulation,strategy1,nrWins1,"                              // Write header to summaryfile 
-                        << "strategy2,nrWins2,genOfFixation\n";      
-
+                        << "strategy2,nrWins2,genOfFixation,"
+                        << "avgPayoff1,avgPayoff2,"
+                        << "avgFinalInd1_coexist,avgFinalInd2_coexist,"
+                        << "nrCoexistReplicates\n";  
 
             //-------------------------------------------------
             // *****     Find the correct data files     ******
             for (int i = 0; i < nrPermutationsUpdating; ++i){                           // Loop to search for 66 files (number of permutations)
+                bool foundPayoffFile = false;
                 string prefix = "Output_" + to_string(i) + "_";                         // Define the respective prefix for the desired data file 
+                string payoffPrefix = "OutputPayOff_" + to_string(i) + "_";             // Prefix for the matching payoff file
 
                 for (const auto& fileEntry : filesystem::directory_iterator(subEntry.path())){  // Run over all the files
-                    
                     if (!fileEntry.is_regular_file()) continue;                                 // Make sure it's a normal file
 
                     string filename = fileEntry.path().filename().string();                     // Store filename as string
-                    if (filename.rfind(prefix, 0) == 0) {                                       // Check if filename start with correct prefix
+                    if (filename.rfind(prefix, 0) != 0) continue;                                     // Check if filename start with correct prefix
 
                         //cout << "Trying to open: " << fileEntry.path().string() << endl;      // Usefull to check for errors per file, but floods the terminal
+                    filesystem::path payoffPath;
+                    for (const auto& payoffFileEntry : filesystem::directory_iterator(subEntry.path())){
+                        if (!payoffFileEntry.is_regular_file()) continue;
+                        string payoffFilename = payoffFileEntry.path().filename().string();
+                        if (payoffFilename.rfind(payoffPrefix, 0) != 0) continue;               // Skip files that don't match "OutputPayOff_i_"
+                        payoffPath = payoffFileEntry.path();
+                        foundPayoffFile = true;
+                        break;
+                    }
 
-                        ifstream dataFile(fileEntry.path());                                    // Open the data file
-                        if (!dataFile.is_open()) {
-                            std::cerr << "Failed to open file!\n";
+                    if (!foundPayoffFile) {
+                        cerr << "\nError: no payoff file found matching prefix " << payoffPrefix << "\n\n";
+                        exit(EXIT_FAILURE);
+                    }
+
+                    ifstream dataFile(fileEntry.path());                                    // Open the data file
+                    if (!dataFile.is_open()) {
+                        std::cerr << "Failed to open file!\n";
+                        exit(EXIT_FAILURE);
+                    }
+
+                    ifstream payoffFile(payoffPath);
+                    if (!payoffFile.is_open()) {
+                        cerr << "Failed to open file: " << payoffPath << "\n";
+                        exit(EXIT_FAILURE);
+                    }
+
+
+                    //------------------------------------------
+                    // *****      Intialize variables     ******
+                    int nrGenerations = totalRoundsUpdating/nrRoundsToUpdateEvent;          // Calculate the total number of generations
+                    
+                    int rowCount = 0;                                                       // Keeps track of replicates
+                    int nrWinsStrategy1 = 0;                                                // Counts "wins" (number of fixation times)
+                    int nrWinsStrategy2 = 0;
+
+                    double sumPayoff1 = 0.0;
+                    double sumPayoff2 = 0.0;
+                    int countPayoff1 = 0;
+                    int countPayoff2 = 0;
+                        
+                    double sumFinalInd1Coexist = 0.0;                                      // NEW: accumulates final-generation strategy1 count, coexistence replicates only
+                    int nrCoexistReplicates = 0;     
+
+                    string headerLine;
+                    getline(dataFile, headerLine);                                         // discard frequency file header
+
+                    string payoffHeader;
+                    getline(payoffFile, payoffHeader);      
+
+                    vector<double> timeOfFixation(nrReplicasUpdatingTotal, 0);              // Create vector to store the time of fixation for each replicate
+
+
+                    //--------------------------------------------------
+                    // *****     Start data analysis per line     ******
+                    for (int j = 0; j < nrReplicasUpdatingTotal; ++j){                          // Create loop to run over replicates in one file
+                        
+                        ++rowCount;
+                        
+                        string line;
+                        getline(dataFile, line);                                                // Grab one replicate (one line, e.g. 100,101,102,102,103...)
+                        stringstream ss(line);                                                  // Transform into stringstream object
+
+                        string payoffLine;
+                        getline(payoffFile, payoffLine);                                   // MATCHING payoff row for this same replicate
+                        stringstream pss(payoffLine);
+                        string cell;
+                        getline(pss, cell, ',');                                           // Replicate index — discard
+                        string outcomeStr;
+                        getline(pss, outcomeStr, ',');                                     // Outcome: "fixation" or "coexistence"
+                        getline(pss, cell, ',');                                           // Winner — discard
+                        string payoffCell1, payoffCell2;
+                        getline(pss, payoffCell1, ',');                                    // AvgPayoff for strategy 1
+                        getline(pss, payoffCell2, ',');                                    // AvgPayoff for strategy 2
+
+                        if (!payoffCell1.empty()) {
+                            sumPayoff1 += stod(payoffCell1);
+                            ++countPayoff1;
+                        }
+                        if (!payoffCell2.empty()) {
+                            sumPayoff2 += stod(payoffCell2);
+                            ++countPayoff2;
                         }
 
-
-                        //------------------------------------------
-                        // *****      Intialize variables     ******
-                        int nrGenerations = totalRoundsUpdating/nrRoundsToUpdateEvent;          // Calculate the total number of generations
-                        
-                        int rowCount = 0;                                                       // Keeps track of replicates
-                        int nrWinsStrategy1 = 0;                                                // Counts "wins" (number of fixation times)
-                        int nrWinsStrategy2 = 0;
-                        
-                        string headerLine;
-                        getline(dataFile, headerLine);                                          // Reads and discards the first line (the header)
-                        
-                        vector<double> timeOfFixation(nrReplicasUpdatingTotal, 0);              // Create vector to store the time of fixation for each replicate
-
-                        //--------------------------------------------------
-                        // *****     Start data analysis per line     ******
-                        for (int j = 0; j < nrReplicasUpdatingTotal; ++j){                          // Create loop to run over replicates in one file
-                            
-                            ++rowCount;
-                            string line;
-                            getline(dataFile, line);                                                // Grab one replicate (one line, e.g. 100,101,102,102,103...)
-                            stringstream ss(line);                                                  // Transform into stringstream object
-
-                            string frequencyString;                                                 // Temporarily stores a data point as a string
-                            double frequency = 0.0;
+                        string frequencyString;                                                 // Temporarily stores a data point as a string
+                        double frequency = 0.0;
 
 
-                            //-------------------------------------------
-                            // *****     Extract data from file     *****
-                            for (int k = 0; k < nrGenerations; ++k){;                               // Create loop to run over one population replicate
+                        //-------------------------------------------
+                        // *****     Extract data from file     *****
+                        for (int k = 0; k < nrGenerations; ++k){;                               // Create loop to run over one population replicate
 
-                                //----------------------------------
-                                // ******      Read values     *****
-                                if (!getline(ss, frequencyString, ',')) {                           // Grab the first data point of the replicate, including safety check
-                                    cerr << "Row " << rowCount << " in " << filename
-                                         << " ran out of values at k=" << k 
-                                         << " (expected " << nrGenerations << ")\n";
-                                    break;                                                          // Skip row to not crash programm
-                                }                                  
+                            //----------------------------------
+                            // ******      Read values     *****
+                            if (!getline(ss, frequencyString, ',')) {                           // Grab the first data point of the replicate, including safety check
+                                cerr << "Row " << rowCount << " in " << filename
+                                        << " ran out of values at k=" << k 
+                                        << " (expected " << nrGenerations << ")\n";
+                                break;                                                          // Skip row to not crash programm
+                            }                                  
 
-                                try {
-                                    frequency = stod(frequencyString);                              // Transform value from string to double
-                                } catch (const exception& e) {                                      // Safety Check
-                                    cerr << "stod failed on \"" << frequencyString 
-                                         << "\" in " << filename
-                                         << " (row " << rowCount 
-                                         << ", k=" << k << "): " << e.what() << "\n";
-                                    break;                                                          // Skip row to not crash programm
-                                }
+                            try {
+                                frequency = stod(frequencyString);                              // Transform value from string to double
+                            } catch (const exception& e) {                                      // Safety Check
+                                cerr << "stod failed on \"" << frequencyString 
+                                        << "\" in " << filename
+                                        << " (row " << rowCount 
+                                        << ", k=" << k << "): " << e.what() << "\n";
+                                break;                                                          // Skip row to not crash programm
+                            }
                                 
                                 
-                                //--------------------------------------------
-                                // *****     Find population fixation    *****
-                                if (frequency <= minNrInd){                                         // Check if strategy 1 has 5 or less individuals
-                                    ++nrWinsStrategy2;                                              // Award a "win" (fixation of) strategy 2
-                                    timeOfFixation[j] = k;                                          // Store the generation of fixation
-                                    break;                                                          // Skip over remaining data (frequency updating is halted after fixation, therefore useless)
-                                } 
-                        
-                                else if (frequency >= nrIndividuals - minNrInd){                    // Check if strategy 1 has 195 or more individuals
-                                    ++nrWinsStrategy1;                                              // Award a "win" to strategy 1
-                                    timeOfFixation[j] = k;                                          // Store the generation of fixation
-                                    break;                                                          // Skip over remaining data of this replicate
+                            //--------------------------------------------
+                            // *****     Find population fixation    *****
+                            if (frequency <= minNrInd){                                         // Check if strategy 1 has 5 or less individuals
+                                ++nrWinsStrategy2;                                              // Award a "win" (fixation of) strategy 2
+                                timeOfFixation[j] = k;                                          // Store the generation of fixation
+                                break;                                                          // Skip over remaining data (frequency updating is halted after fixation, therefore useless)
+                            } 
+                    
+                            else if (frequency >= nrIndividuals - minNrInd){                    // Check if strategy 1 has 195 or more individuals
+                                ++nrWinsStrategy1;                                              // Award a "win" to strategy 1
+                                timeOfFixation[j] = k;                                          // Store the generation of fixation
+                                break;                                                          // Skip over remaining data of this replicate
+                            }
+                        }
+                        // At this point, `frequency` holds the LAST value read for this replicate —
+                        // either the value that triggered fixation, or (if the loop ran to completion
+                        // without breaking) the genuine final-generation composition.
+
+                        if (outcomeStr == "coexistence") {                                 // NEW: accumulate only for true coexistence replicates
+                            sumFinalInd1Coexist += frequency;
+                            ++nrCoexistReplicates;
+                        }
+                    }
+
+                    dataFile.close();
+                    payoffFile.close();
+
+
+                    //--------------------------------------------
+                    // *****     Calculate fixation time     *****
+                    double sumFixation = 0.0;
+                    double averageFixationTime = 0.0;
+                    int countFixationNr = 0;
+
+                    for (int x = 0; x < nrReplicasUpdatingTotal; ++x ) {        // Create a loop to run over timeOffFixation (vector)
+                        if (timeOfFixation[x] > 0){                             // Vector is initialized at zero, so only if there is a generation of fixation found...
+                            sumFixation += timeOfFixation[x];                   // ...add the generation number to the sum
+                            ++countFixationNr;                                  // Add one to the fixation counter
+                        }
+                    }
+                    averageFixationTime = (countFixationNr > 0) ? sumFixation/countFixationNr : 0.0;          // Calculate average fixation time 
+
+
+                    //---------------------------------
+                    // *****     Safety check     *****
+                    if (rowCount != nrReplicasUpdatingTotal) {                  // If the number of rows in datafile does not equal global parameter...
+                        cerr << "\nError: file has " << rowCount                // ...throw error message
+                            << " rows, expected " << nrReplicasUpdatingTotal 
+                            << "\n\n";
+                        exit(EXIT_FAILURE);                                     // Exit program
+                    }
+            
+
+                    //------------------------------------------------------
+                    // *****     Extract names from inputfile name     *****
+                    string rest = filename.substr(prefix.size());               // Remove prefix "Output_0_" from filename
+                    string nameOnly = rest.substr(0, rest.size() - 4);          // Remove file format ".csv" from filename
+
+                    string sep = "_&_";                                         // Define the name seperator
+                    size_t sepPos = nameOnly.find(sep);                         // Find the position of the seperator in the file
+
+                    string name1 = nameOnly.substr(0, sepPos);                  // Extract the first name (beginning to seperator)
+                    string name2 = nameOnly.substr(sepPos + sep.size());        // Extract the second name (seperator to end)
+
+
+                    //--------------------------------------
+                    // *****     Calculate payoffs     *****
+                    double avgPayoff1 = (countPayoff1 > 0) ? sumPayoff1 / countPayoff1 : 0.0;
+                    double avgPayoff2 = (countPayoff2 > 0) ? sumPayoff2 / countPayoff2 : 0.0;
+
+                    double avgFinalInd1Coexist = (nrCoexistReplicates > 0) ? sumFinalInd1Coexist / nrCoexistReplicates : 0.0;
+                    double avgFinalInd2Coexist = (nrCoexistReplicates > 0) ? nrIndividuals - avgFinalInd1Coexist : 0.0;
+
+                    //---------------------------------------------------
+                    // *****     Write analysis to summary file     *****
+                    summaryFile << i << ","
+                        << name1 << "," << nrWinsStrategy1 << ","
+                        << name2 << "," << nrWinsStrategy2 << ","
+                        << averageFixationTime << ","
+                        << avgPayoff1 << "," << avgPayoff2 << ","
+                        << avgFinalInd1Coexist << "," << avgFinalInd2Coexist << "," << nrCoexistReplicates << "\n";
+
+                    break;                                                                  // frequency file for this i found and processed, move to next i
+                }
+            }
+        }
+    }
+    return 0;
+}
+/*
+                        //----------------------------------------------------------------
+                        // *****     Find and average the matching payoff file      ******
+                        for (const auto& payoffFileEntry : filesystem::directory_iterator(subEntry.path())){
+
+                            if (!payoffFileEntry.is_regular_file()) continue;
+                            string payoffFilename = payoffFileEntry.path().filename().string();
+                            if (payoffFilename.rfind(payoffPrefix, 0) != 0) continue;               // Skip files that don't match "OutputPayOff_i_"
+
+                            foundPayoffFile = true;
+
+                            ifstream payoffFile(payoffFileEntry.path());
+                            if (!payoffFile.is_open()) {
+                                cerr << "Failed to open file!\n";
+                                break;
+                            }
+
+                            string payoffHeader;
+                            getline(payoffFile, payoffHeader);
+
+                            double sumPayoff1 = 0.0;
+                            double sumPayoff2 = 0.0;
+                            int countPayoff1 = 0;
+                            int countPayoff2 = 0;
+                            int payoffRowCount = 0;
+
+                            string payoffLine;
+                            while (getline(payoffFile, payoffLine)) {
+                                ++payoffRowCount;
+                                stringstream pss(payoffLine);
+                                string cell;
+
+                                getline(pss, cell, ',');   // Replicate index — discard
+                                getline(pss, cell, ',');   // Outcome — discard
+                                getline(pss, cell, ',');   // Winner — discard
+
+                                getline(pss, cell, ',');   // AvgPayoff for strategy 1
+                                if (!cell.empty()) {
+                                    sumPayoff1 += stod(cell);
+                                    ++countPayoff1;
                                 }
+
+                                getline(pss, cell, ',');   // AvgPayoff for strategy 2
+                                if (!cell.empty()) {
+                                    sumPayoff2 += stod(cell);
+                                    ++countPayoff2;
+                                }
+                            }
+
+                            avgPayoff1 = (countPayoff1 > 0) ? sumPayoff1 / countPayoff1 : 0.0;
+                            avgPayoff2 = (countPayoff2 > 0) ? sumPayoff2 / countPayoff2 : 0.0;
+
+                            payoffFile.close();
+
+                            if (payoffRowCount != nrReplicasUpdatingTotal) {
+                                cerr << "\nError: payoff file has " << payoffRowCount
+                                    << " rows, expected " << nrReplicasUpdatingTotal << "\n\n";
+                                exit(EXIT_FAILURE);
                             }
                         }
 
-
-                        //--------------------------------------------
-                        // *****     Calculate fixation time     *****
-                        double sumFixation = 0.0;
-                        double averageFixationTime = 0.0;
-                        int countFixationNr = 0;
-
-                        for (int x = 0; x < nrReplicasUpdatingTotal; ++x ) {        // Create a loop to run over timeOffFixation (vector)
-                            if (timeOfFixation[x] > 0){                             // Vector is initialized at zero, so only if there is a generation of fixation found...
-                                sumFixation += timeOfFixation[x];                   // ...add the generation number to the sum
-                                ++countFixationNr;                                  // Add one to the fixation counter
-                            }
+                        if (!foundPayoffFile) {
+                            cerr << "\nError: no payoff file found matching prefix " << payoffPrefix << "\n\n";
+                            exit(EXIT_FAILURE);
                         }
-                        averageFixationTime = sumFixation/countFixationNr;          // Calculate average fixation time 
-
-
-                        //---------------------------------
-                        // *****     Safety check     *****
-                        if (rowCount != nrReplicasUpdatingTotal) {                  // If the number of rows in datafile does not equal global parameter...
-                            cerr << "\nError: file has " << rowCount                // ...throw error message
-                                << " rows, expected " << nrReplicasUpdatingTotal 
-                                << "\n\n";
-                            exit(EXIT_FAILURE);                                     // Exit program
-                        }
-                
-
-                        //------------------------------------------------------
-                        // *****     Extract names from inputfile name     *****
-                        string rest = filename.substr(prefix.size());               // Remove prefix "Output_0_" from filename
-                        string nameOnly = rest.substr(0, rest.size() - 4);          // Remove file format ".csv" from filename
-
-                        string sep = "_&_";                                         // Define the name seperator
-                        size_t sepPos = nameOnly.find(sep);                         // Find the position of the seperator in the file
-
-                        string name1 = nameOnly.substr(0, sepPos);                  // Extract the first name (beginning to seperator)
-                        string name2 = nameOnly.substr(sepPos + sep.size());        // Extract the second name (seperator to end)
-
 
                         //---------------------------------------------------
                         // *****     Write analysis to summary file     *****
                         summaryFile << i << ","                                     // Write the number of the simulation, 
                             << name1 << "," << nrWinsStrategy1 << ","               // The first strategy name and the number of times it fixated,
                             << name2 << "," << nrWinsStrategy2 << ","               // The second strategy name and the number of times it fixated,
-                            << averageFixationTime << "\n";                         // And the average number of generations before fixation
-
+                            << averageFixationTime << ","                         // And the average number of generations before fixation
+                            << avgPayoff1 << "," << avgPayoff2 << "\n";     
 
                         break;                                                      // The correct file has been found, so the search loop is halted
                     }   
@@ -185,4 +344,4 @@ int main (){
         }
     }
     return 0;
-}
+}*/

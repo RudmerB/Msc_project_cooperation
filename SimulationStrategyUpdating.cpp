@@ -206,10 +206,6 @@ void PopulationClassStrategyUpdating::RunReplicas(
     int nrUpdateEvents = totalRoundsUpdating/nrRoundsToUpdateEvent;                         // Calculate the nr of update events 
     vector<vector<int>> results(nrReplicasUpdating, vector<int>(nrUpdateEvents));       // Create a matrix for results
     // ^Define Matrix   ^Name   ^Nr rows            ^Nr values per replicate   
-    
-    vector<vector<pair<double,double>>> payoffResults(                                       // Payoff of (A,B) per replicate/event
-        nrReplicasUpdating, vector<pair<double,double>>(nrUpdateEvents, {0.0, 0.0})
-    );
 
     vector<double> finalPayoffA(nrReplicasUpdating, -1.0);                                   // -1 = not applicable
     vector<double> finalPayoffB(nrReplicasUpdating, -1.0);
@@ -230,7 +226,7 @@ void PopulationClassStrategyUpdating::RunReplicas(
         //             don't exceed usable threads
 
             int rep = replica + t;                                                          // Determine true replica index (replica=8 & t=2, means thread handles replica 10)
-             threads.emplace_back([=, &results, &payoffResults, &finalPayoffA, &finalPayoffB, &outcome, &winnerName](){
+             threads.emplace_back([=, &results, &finalPayoffA, &finalPayoffB, &outcome, &winnerName](){
                                           // Construct thread obejct in vector
             //                    ^  ^
             //                    |  pass results by Reference (different threads need to right to same matrix)
@@ -425,8 +421,9 @@ void SimulationStrategyUpdating(const string simulationType,
         }
 
         if (existingLines != existingLinesPayOff) {
-            cout << "match-up issue with frequency and payoff files\n";
-            return;
+            cout << "match-up issue with frequency and payoff files in simulation "
+                 << simulation << "\n";
+            continue;
         }
 
         // Open for writing
