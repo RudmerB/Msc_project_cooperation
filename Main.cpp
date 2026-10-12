@@ -131,7 +131,7 @@ int main()
         system("mkdir results_updating_allstrats");
         }    
 
-        const double benefit = 2.0;
+        const double benefit = 10.0;
         array<int, nrStrategies> startingFrequencies; //{0,0,0,0,0,0,0,0,0,0,120,120};
         startingFrequencies.fill(20);                      // 20 individuals per strategy, all 12 active
 
