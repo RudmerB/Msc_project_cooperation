@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "Parameters.h"
+#include "ComputeCI.h"
 
 using namespace std;
 
@@ -42,11 +43,12 @@ int main (){
                 exit(EXIT_FAILURE);
             }
 
-            summaryFile << "simulation,strategy1,nrWins1,"                              // Write header to summaryfile 
+            summaryFile << "simulation,strategy1,nrWins1,"                              // Write header to file
                         << "strategy2,nrWins2,genOfFixation,"
-                        << "avgPayoff1,avgPayoff2,"
+                        << "avgPayoff1,lowerPayoff1,upperPayoff1,"
+                        << "avgPayoff2,lowerPayoff2,upperPayoff2,"
                         << "avgFinalInd1_coexist,avgFinalInd2_coexist,"
-                        << "nrCoexistReplicates\n";  
+                        << "nrCoexistReplicates,nrPayoff1,nrPayoff2\n";
 
             //-------------------------------------------------
             // *****     Find the correct data files     ******
@@ -98,12 +100,10 @@ int main (){
                     int nrWinsStrategy1 = 0;                                                // Counts "wins" (number of fixation times)
                     int nrWinsStrategy2 = 0;
 
-                    double sumPayoff1 = 0.0;
-                    double sumPayoff2 = 0.0;
-                    int countPayoff1 = 0;
-                    int countPayoff2 = 0;
+                    vector<double> payoffValues1;                                          // all recorded payoffs of strategy 1 (one per replicate)
+                    vector<double> payoffValues2;                                          // all recorded payoffs of strategy 2
                         
-                    double sumFinalInd1Coexist = 0.0;                                      // NEW: accumulates final-generation strategy1 count, coexistence replicates only
+                    double sumFinalInd1Coexist = 0.0;                                      // Accumulates final-generation strategy1 count, coexistence replicates only
                     int nrCoexistReplicates = 0;     
 
                     string headerLine;
@@ -138,17 +138,14 @@ int main (){
                         getline(pss, payoffCell2, ',');                                    // AvgPayoff for strategy 2
 
                         if (!payoffCell1.empty()) {
-                            sumPayoff1 += stod(payoffCell1);
-                            ++countPayoff1;
+                            payoffValues1.push_back(stod(payoffCell1));
                         }
                         if (!payoffCell2.empty()) {
-                            sumPayoff2 += stod(payoffCell2);
-                            ++countPayoff2;
+                            payoffValues2.push_back(stod(payoffCell2));
                         }
 
                         string frequencyString;                                                 // Temporarily stores a data point as a string
                         double frequency = 0.0;
-
 
                         //-------------------------------------------
                         // *****     Extract data from file     *****
@@ -240,9 +237,27 @@ int main (){
 
 
                     //--------------------------------------
-                    // *****     Calculate payoffs     *****
-                    double avgPayoff1 = (countPayoff1 > 0) ? sumPayoff1 / countPayoff1 : 0.0;
-                    double avgPayoff2 = (countPayoff2 > 0) ? sumPayoff2 / countPayoff2 : 0.0;
+                    // *****     Calculate payoffs + CI     *****
+                    double avgPayoff1 = 0.0, lowerPayoff1 = 0.0, upperPayoff1 = 0.0;
+                    double avgPayoff2 = 0.0, lowerPayoff2 = 0.0, upperPayoff2 = 0.0;
+
+                    if (payoffValues1.size() >= 2) {
+                        ConfidenceInterval ci1 = CalculateCI(payoffValues1);               // default z = 1.96 (95%)
+                        avgPayoff1 = ci1.mean;
+                        lowerPayoff1 = ci1.lower;
+                        upperPayoff1 = ci1.upper;
+                    } else if (payoffValues1.size() == 1) {
+                        avgPayoff1 = lowerPayoff1 = upperPayoff1 = payoffValues1[0];
+                    }
+
+                    if (payoffValues2.size() >= 2) {
+                        ConfidenceInterval ci2 = CalculateCI(payoffValues2);
+                        avgPayoff2 = ci2.mean;
+                        lowerPayoff2 = ci2.lower;
+                        upperPayoff2 = ci2.upper;
+                    } else if (payoffValues2.size() == 1) {
+                        avgPayoff2 = lowerPayoff2 = upperPayoff2 = payoffValues2[0];
+                    }
 
                     double avgFinalInd1Coexist = (nrCoexistReplicates > 0) ? sumFinalInd1Coexist / nrCoexistReplicates : 0.0;
                     double avgFinalInd2Coexist = (nrCoexistReplicates > 0) ? nrIndividuals - avgFinalInd1Coexist : 0.0;
@@ -250,11 +265,14 @@ int main (){
                     //---------------------------------------------------
                     // *****     Write analysis to summary file     *****
                     summaryFile << i << ","
-                        << name1 << "," << nrWinsStrategy1 << ","
-                        << name2 << "," << nrWinsStrategy2 << ","
-                        << averageFixationTime << ","
-                        << avgPayoff1 << "," << avgPayoff2 << ","
-                        << avgFinalInd1Coexist << "," << avgFinalInd2Coexist << "," << nrCoexistReplicates << "\n";
+                                << name1 << "," << nrWinsStrategy1 << ","
+                                << name2 << "," << nrWinsStrategy2 << ","
+                                << averageFixationTime << ","
+                                << avgPayoff1 << "," << lowerPayoff1 << "," << upperPayoff1 << ","
+                                << avgPayoff2 << "," << lowerPayoff2 << "," << upperPayoff2 << ","
+                                << avgFinalInd1Coexist << "," << avgFinalInd2Coexist << ","
+                                << nrCoexistReplicates << ","
+                                << payoffValues1.size() << "," << payoffValues2.size() << "\n";
 
                     break;                                                                  // frequency file for this i found and processed, move to next i
                 }
@@ -263,85 +281,3 @@ int main (){
     }
     return 0;
 }
-/*
-                        //----------------------------------------------------------------
-                        // *****     Find and average the matching payoff file      ******
-                        for (const auto& payoffFileEntry : filesystem::directory_iterator(subEntry.path())){
-
-                            if (!payoffFileEntry.is_regular_file()) continue;
-                            string payoffFilename = payoffFileEntry.path().filename().string();
-                            if (payoffFilename.rfind(payoffPrefix, 0) != 0) continue;               // Skip files that don't match "OutputPayOff_i_"
-
-                            foundPayoffFile = true;
-
-                            ifstream payoffFile(payoffFileEntry.path());
-                            if (!payoffFile.is_open()) {
-                                cerr << "Failed to open file!\n";
-                                break;
-                            }
-
-                            string payoffHeader;
-                            getline(payoffFile, payoffHeader);
-
-                            double sumPayoff1 = 0.0;
-                            double sumPayoff2 = 0.0;
-                            int countPayoff1 = 0;
-                            int countPayoff2 = 0;
-                            int payoffRowCount = 0;
-
-                            string payoffLine;
-                            while (getline(payoffFile, payoffLine)) {
-                                ++payoffRowCount;
-                                stringstream pss(payoffLine);
-                                string cell;
-
-                                getline(pss, cell, ',');   // Replicate index — discard
-                                getline(pss, cell, ',');   // Outcome — discard
-                                getline(pss, cell, ',');   // Winner — discard
-
-                                getline(pss, cell, ',');   // AvgPayoff for strategy 1
-                                if (!cell.empty()) {
-                                    sumPayoff1 += stod(cell);
-                                    ++countPayoff1;
-                                }
-
-                                getline(pss, cell, ',');   // AvgPayoff for strategy 2
-                                if (!cell.empty()) {
-                                    sumPayoff2 += stod(cell);
-                                    ++countPayoff2;
-                                }
-                            }
-
-                            avgPayoff1 = (countPayoff1 > 0) ? sumPayoff1 / countPayoff1 : 0.0;
-                            avgPayoff2 = (countPayoff2 > 0) ? sumPayoff2 / countPayoff2 : 0.0;
-
-                            payoffFile.close();
-
-                            if (payoffRowCount != nrReplicasUpdatingTotal) {
-                                cerr << "\nError: payoff file has " << payoffRowCount
-                                    << " rows, expected " << nrReplicasUpdatingTotal << "\n\n";
-                                exit(EXIT_FAILURE);
-                            }
-                        }
-
-                        if (!foundPayoffFile) {
-                            cerr << "\nError: no payoff file found matching prefix " << payoffPrefix << "\n\n";
-                            exit(EXIT_FAILURE);
-                        }
-
-                        //---------------------------------------------------
-                        // *****     Write analysis to summary file     *****
-                        summaryFile << i << ","                                     // Write the number of the simulation, 
-                            << name1 << "," << nrWinsStrategy1 << ","               // The first strategy name and the number of times it fixated,
-                            << name2 << "," << nrWinsStrategy2 << ","               // The second strategy name and the number of times it fixated,
-                            << averageFixationTime << ","                         // And the average number of generations before fixation
-                            << avgPayoff1 << "," << avgPayoff2 << "\n";     
-
-                        break;                                                      // The correct file has been found, so the search loop is halted
-                    }   
-                }
-            }
-        }
-    }
-    return 0;
-}*/
