@@ -207,8 +207,10 @@ void PopulationClassStrategyUpdating::RunReplicas(
     vector<vector<int>> results(nrReplicasUpdating, vector<int>(nrUpdateEvents));       // Create a matrix for results
     // ^Define Matrix   ^Name   ^Nr rows            ^Nr values per replicate   
 
-    vector<double> finalPayoffA(nrReplicasUpdating, -1.0);                                   // -1 = not applicable
-    vector<double> finalPayoffB(nrReplicasUpdating, -1.0);
+    const double PAYOFF_NOT_APPLICABLE = -999999.0;                                          // sentinel that can never collide with a real payoff
+
+    vector<double> finalPayoffA(nrReplicasUpdating, PAYOFF_NOT_APPLICABLE);                                  // CHANGED from -1.0
+    vector<double> finalPayoffB(nrReplicasUpdating, PAYOFF_NOT_APPLICABLE);         // CHANGED from -1.0
     vector<string> outcome(nrReplicasUpdating, "coexistence");
     vector<string> winnerName(nrReplicasUpdating, "none");
 
@@ -313,9 +315,9 @@ void PopulationClassStrategyUpdating::RunReplicas(
 
     for(int rep = 0; rep < nrReplicasUpdating; ++rep){
         finalPayoffFile << rep << "," << outcome[rep] << "," << winnerName[rep] << ",";
-        if (finalPayoffA[rep] >= 0.0) finalPayoffFile << finalPayoffA[rep];
+        if (finalPayoffA[rep] > PAYOFF_NOT_APPLICABLE) finalPayoffFile << finalPayoffA[rep];
         finalPayoffFile << ",";
-        if (finalPayoffB[rep] >= 0.0) finalPayoffFile << finalPayoffB[rep];
+        if (finalPayoffB[rep] > PAYOFF_NOT_APPLICABLE) finalPayoffFile << finalPayoffB[rep];
         finalPayoffFile << "\n";
     }
 }
