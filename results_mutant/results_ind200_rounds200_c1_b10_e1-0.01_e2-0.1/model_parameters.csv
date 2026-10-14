@@ -1,7 +1,0 @@
-cost = 1
-benefit = 10
-error1 = 0.01
-error2 = 0.1
-nrIndividuals = 200
-nrRounds = 200
-nrReplicates = 1000
