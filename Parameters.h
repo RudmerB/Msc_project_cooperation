@@ -8,7 +8,7 @@ using namespace std;
 const array<string, 12> strategyNames = {"L1","L2","L3","L4","L5","L6","L7","L8","SH","I-S","ALLC","ALLD"};
 
 //--- Global Parameters ---
-constexpr int       nrIndividuals           = 200;              // Nr of individuals in one population //FIXME
+constexpr int       nrIndividuals           = 240;              // Nr of individuals in one population //FIXME
 
 
 constexpr int       nrStrategies            = 12;               // Total number of social strategies (Leading eight, image-scoring etc.)
@@ -34,4 +34,4 @@ constexpr int       minNrInd                = 5;
 
 
 //new
-constexpr int nrReplicasUpdatingTotalAllStrats  = 1000;
+constexpr int nrReplicasUpdatingTotalAllStrats  = 100;

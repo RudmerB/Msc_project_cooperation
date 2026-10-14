@@ -244,7 +244,7 @@ void PopulationClassStrategyUpdatingAllStrats::RunReplicas(
     //--- Create results matrix ---
     int nrUpdateEvents = totalRoundsUpdating/nrRoundsToUpdateEvent;
     vector<vector<vector<int>>> results(
-        nrReplicasUpdating,
+        nrReplicasUpdatingTotalAllStrats,
         vector<vector<int>>(nrUpdateEvents + 1, vector<int>(nrStrategies, 0))       // added dimension compared to other simulation strategy
     );
     // results[replica][eventIndex][strategyIndex]
@@ -252,12 +252,12 @@ void PopulationClassStrategyUpdatingAllStrats::RunReplicas(
     auto start = chrono::high_resolution_clock::now();   
 
     //--- Run replicats ---
-    for(int replica = 0; replica < nrReplicasUpdating; replica += nrThreads){               // Replica for-loop, jumps with nrThreads increments
+    for(int replica = 0; replica < nrReplicasUpdatingTotalAllStrats; replica += nrThreads){               // Replica for-loop, jumps with nrThreads increments
         vector<thread> threads;                                                             // Store thread objects (all functions the thread needs)
         threads.reserve(nrThreads);                                                         // Reserve space for the vector based on nr of threads
 
         //--- Run simultaneous threads ---
-        for(int t = 0; t < nrThreads && replica + t < nrReplicasUpdating; ++t) {            // Loop over threads in current batch
+        for(int t = 0; t < nrThreads && replica + t < nrReplicasUpdatingTotalAllStrats; ++t) {            // Loop over threads in current batch
         //             ^                ^
         //             |                don't exceed total replicates (last batch may have fewer replicates than nrThreads)
         //             don't exceed usable threads
@@ -332,10 +332,10 @@ void PopulationClassStrategyUpdatingAllStrats::RunReplicas(
 
         for(auto& t : threads) t.join();                                                    // Wait till all threads are finished before starting the next batch of replicates
 
-        PrintProgress(replica, nrThreads, nrReplicasUpdating, start, benefit, cost); 
+        PrintProgress(replica, nrThreads, nrReplicasUpdatingTotalAllStrats, start, benefit, cost); 
     }    
 
-    for(int rep = 0; rep < nrReplicasUpdating; ++rep){      // loop over replicas
+    for(int rep = 0; rep < nrReplicasUpdatingTotalAllStrats; ++rep){      // loop over replicas
         for(int e = 0; e < results[rep].size(); ++e){       // loop over generations
             for (int s = 0; s < nrStrategies; ++s) {        // loop over strategies
                 outputFile << results[rep][e][s];           // write results of replicate/generation/strategy to output file
